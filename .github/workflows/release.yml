@@ -83,7 +83,7 @@ jobs:
           platforms: linux/amd64
           push: true
           tags: |
-            kirillzak/${{ github.repository }}:${{ matrix.version_branch }}.${{ matrix.version_minor_release }}
+            kirillzak/docker-almalinux-ansible:${{ matrix.version_branch }}.${{ matrix.version_minor_release }}
             ghcr.io/${{ github.repository }}:${{ matrix.version_branch }}.${{ matrix.version_minor_release }}
 
   latest-release:
@@ -123,5 +123,5 @@ jobs:
           platforms: linux/amd64
           push: true
           tags: |
-            kirillzak/${{ github.repository }}:latest
+            kirillzak/docker-almalinux-ansible:latest
             ghcr.io/${{ github.repository }}:latest
