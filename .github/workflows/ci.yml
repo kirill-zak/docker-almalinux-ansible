@@ -1,0 +1,32 @@
+---
+name: CI
+'on':
+  pull_request:
+  push:
+    branches:
+      - master
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+
+    strategy: 
+      fail-fast: false
+
+      matrix:
+        version_branch: [8]
+        version_minor_release: [5]
+
+    steps:
+      - name: Checkout out the codebase
+        uses: actions/checkout@v3
+
+      - name: Test building image
+        run: podman build -t docker-almalinux-ansible:${{ matrix.version_branch }}.${{ matrix.version_minor_release }} ./almalinux${{ matrix.version_branch }}/. --build-arg VERSION=${{ matrix.version_branch }}.${{ matrix.version_minor_release }}
+      
+      - name: Run the built image
+        run: podman run --name test-container --detach --privileged --volume /sys/fs/cgroup:/sys/fs/cgroup:ro docker-almalinux-ansible:${{ matrix.version_branch }}.${{ matrix.version_minor_release }}
+
+      - name: Verify Ansible is accessible in the built image
+        run: podman exec --tty test-container env TERM=xterm ansible --version
