@@ -17,6 +17,9 @@ jobs:
       matrix:
         version_branch: [8]
         version_minor_release: [5, 6, 7]
+        include:
+          - version_branch: 9
+            version_minor_release: 0
 
     steps:
       - name: Checkout out the codebase
