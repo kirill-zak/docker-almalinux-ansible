@@ -24,6 +24,8 @@ jobs:
         include:
           - version_branch: 9
             version_minor_release: 0
+          - version_branch: 9
+            version_minor_release: 1
 
     steps:
       - name: Checkout out the codebase
@@ -56,6 +58,8 @@ jobs:
         include:
           - version_branch: 9
             version_minor_release: 0
+          - version_branch: 9
+            version_minor_release: 1
 
     steps:
       - name: Checkout out the codebase
@@ -123,7 +127,7 @@ jobs:
       - name: Build and push image
         uses: docker/build-push-action@v3
         with:
-          build-args: VERSION=9.0
+          build-args: VERSION=9.1
           context: ./
           file: ./almalinux9/Dockerfile
           platforms: linux/amd64
