@@ -88,8 +88,7 @@ jobs:
         uses: docker/build-push-action@v4
         with:
           build-args: VERSION=${{ matrix.version_branch }}.${{ matrix.version_minor_release }}
-          context: ./
-          file: ./almalinux${{ matrix.version_branch }}/Dockerfile
+          context: ./almalinux${{ matrix.version_branch }}/.
           platforms: linux/amd64
           push: true
           tags: |
@@ -128,8 +127,7 @@ jobs:
         uses: docker/build-push-action@v3
         with:
           build-args: VERSION=9.1
-          context: ./
-          file: ./almalinux9/Dockerfile
+          context: ./almalinux9/.
           platforms: linux/amd64
           push: true
           tags: |
