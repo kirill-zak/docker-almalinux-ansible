@@ -7,7 +7,7 @@ ENV container=docker
 
 ENV pip_packages "ansible"
 
-RUN dnf -y update && dnf clean all
+RUN dnf upgrade almalinux-release -y && dnf -y update && dnf clean all
 
 # Enable systemd.
 RUN dnf -y install systemd && dnf clean all && \
