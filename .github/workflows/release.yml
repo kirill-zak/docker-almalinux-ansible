@@ -6,6 +6,9 @@ on:
     tags:
       - '*'
 
+env:
+  REGISTRY_IMAGE: kirillzak/docker-almalinux-ansible
+
 jobs:
   test:
     name: Test
@@ -19,19 +22,29 @@ jobs:
       fail-fast: false
 
       matrix:
-        version_branch: [8]
-        version_minor_release: [5, 6, 7, 8, 9]
-        include:
-          - version_branch: 9
+        version_branch: [8,9]
+        version_minor_release: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+        exclude:
+          - version_branch: 8
             version_minor_release: 0
-          - version_branch: 9
+          - version_branch: 8
             version_minor_release: 1
-          - version_branch: 9
+          - version_branch: 8
             version_minor_release: 2
-          - version_branch: 9
+          - version_branch: 8
             version_minor_release: 3
-          - version_branch: 9
+          - version_branch: 8
             version_minor_release: 4
+          - version_branch: 9
+            version_minor_release: 5
+          - version_branch: 9
+            version_minor_release: 6
+          - version_branch: 9
+            version_minor_release: 7
+          - version_branch: 9
+            version_minor_release: 8
+          - version_branch: 9
+            version_minor_release: 9
 
     steps:
       - name: Checkout out the codebase
@@ -59,23 +72,39 @@ jobs:
       fail-fast: false
 
       matrix:
-        version_branch: [8]
-        version_minor_release: [5, 6, 7, 8, 9]
-        include:
-          - version_branch: 9
+        version_branch: [8,9]
+        version_minor_release: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+        exclude:
+          - version_branch: 8
             version_minor_release: 0
-          - version_branch: 9
+          - version_branch: 8
             version_minor_release: 1
-          - version_branch: 9
+          - version_branch: 8
             version_minor_release: 2
-          - version_branch: 9
+          - version_branch: 8
             version_minor_release: 3
-          - version_branch: 9
+          - version_branch: 8
             version_minor_release: 4
+          - version_branch: 9
+            version_minor_release: 5
+          - version_branch: 9
+            version_minor_release: 6
+          - version_branch: 9
+            version_minor_release: 7
+          - version_branch: 9
+            version_minor_release: 8
+          - version_branch: 9
+            version_minor_release: 9
 
     steps:
       - name: Checkout out the codebase
         uses: actions/checkout@v3
+      
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY_IMAGE }}
 
       - name: Add Qemu
         uses: docker/setup-qemu-action@v2
@@ -100,12 +129,28 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           build-args: VERSION=${{ matrix.version_branch }}.${{ matrix.version_minor_release }}
-          context: ./almalinux${{ matrix.version_branch }}/.
-          platforms: linux/amd64
+          context: ./
+          file: ./almalinux${{ matrix.version_branch }}/Dockerfile
+          platforms: linux/amd64,linux/ppc64le
+          labels: ${{ steps.meta.outputs.labels }}
           push: true
           tags: |
             kirillzak/docker-almalinux-ansible:${{ matrix.version_branch }}.${{ matrix.version_minor_release }}
             ghcr.io/${{ github.repository }}:${{ matrix.version_branch }}.${{ matrix.version_minor_release }}
+      
+      - name: Export digest
+        run: |
+          mkdir -p /tmp/digests
+          digest="${{ steps.build.outputs.digest }}"
+          touch "/tmp/digests/${digest#sha256:}"
+
+      - name: Upload digest
+        uses: actions/upload-artifact@v3
+        with:
+          name: digests
+          path: /tmp/digests/*
+          if-no-files-found: error
+          retention-days: 1
 
   latest-release:
     name: Latest release
@@ -139,8 +184,9 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           build-args: VERSION=9.4
-          context: ./almalinux9/.
-          platforms: linux/amd64
+          context: ./
+          file: ./almalinux9/Dockerfile
+          platforms: linux/amd64,linux/ppc64le
           push: true
           tags: |
             kirillzak/docker-almalinux-ansible:latest

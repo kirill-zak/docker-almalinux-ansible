@@ -5,8 +5,6 @@ FROM almalinux:${VERSION}
 LABEL maintainer="Kirill Ziuzin"
 ENV container=docker
 
-ENV pip_packages "ansible"
-
 RUN dnf -y update && dnf clean all
 
 # Enable systemd.
@@ -20,18 +18,13 @@ RUN dnf -y install systemd && dnf clean all && \
   rm -f /lib/systemd/system/basic.target.wants/*;\
   rm -f /lib/systemd/system/anaconda.target.wants/*;
 
-# Install pip and other requirements.
+# Install requirements.
 RUN dnf makecache \
   && dnf -y install \
-    dnf-plugins-core \
-    python3-pip \
+    ansible-core \
     sudo \
     which \
-    python3-dnf \
   && dnf clean all
-
-# Install Ansible via Pip.
-RUN pip3 install $pip_packages
 
 # Disable requiretty.
 RUN sed -i -e 's/^\(Defaults\s*requiretty\)/#--- \1/'  /etc/sudoers
