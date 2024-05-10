@@ -86,6 +86,9 @@ jobs:
             version_minor_release: 3
           - version_branch: 8
             version_minor_release: 4
+          - version_branch: 8
+            version_minor_release: 5
+            platform: linux/s390x
           - version_branch: 9
             version_minor_release: 5
           - version_branch: 9
