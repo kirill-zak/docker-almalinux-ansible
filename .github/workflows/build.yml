@@ -2,6 +2,9 @@
 name: Build
 on: workflow_dispatch
 
+env:
+  REGISTRY_IMAGE: kirillzak/docker-almalinux-ansible
+
 jobs:
   test-build:
     name: Test build of image
