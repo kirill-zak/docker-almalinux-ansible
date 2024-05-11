@@ -46,6 +46,12 @@ jobs:
     steps:
       - name: Checkout out the codebase
         uses: actions/checkout@v4
+      
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY_IMAGE }}
 
       - name: Add Qemu
         uses: docker/setup-qemu-action@v3
@@ -61,8 +67,10 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
           load: true
+          labels: ${{ steps.meta.outputs.labels }}
           file: ./almalinux${{ matrix.version_branch }}/Dockerfile
           platforms: ${{ matrix.platform }}
+          outputs: type=image,name=${{ env.REGISTRY_IMAGE }},name-canonical=true
           push: false
           tags: |
             kirillzak/docker-almalinux-ansible:${{ matrix.version_branch }}.${{ matrix.version_minor_release }}
