@@ -1,7 +1,9 @@
 # Get version of AlmaLinux to build
 ARG VERSION
+# Get build platform
+ARG BUILDPLATFORM=linux/amd64
 
-FROM almalinux:${VERSION}
+FROM --platform=$BUILDPLATFORM almalinux:${VERSION}
 LABEL maintainer="Kirill Ziuzin"
 ENV container=docker
 
