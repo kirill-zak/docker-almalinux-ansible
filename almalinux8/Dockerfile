@@ -7,7 +7,8 @@ FROM --platform=$BUILDPLATFORM almalinux:${VERSION}
 LABEL maintainer="Kirill Ziuzin"
 ENV container=docker
 
-RUN dnf upgrade almalinux-release -y && dnf -y update && dnf clean all
+RUN rpm --import https://repo.almalinux.org/almalinux/RPM-GPG-KEY-AlmaLinux && \
+    dnf -y update && dnf clean all
 
 # Enable systemd.
 RUN dnf -y install systemd && dnf clean all && \
