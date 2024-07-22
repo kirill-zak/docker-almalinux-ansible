@@ -120,7 +120,7 @@ jobs:
 
       - name: Build and push image
         id: build
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           build-args: VERSION=${{ matrix.version_branch }}.${{ matrix.version_minor_release }}
           context: ./
@@ -194,7 +194,7 @@ jobs:
 
       - name: Build and push image
         id: build
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           build-args: VERSION=${{ matrix.version_branch }}.${{ matrix.version_minor_release }}
           context: ./
@@ -257,7 +257,7 @@ jobs:
 
       - name: Build and push image
         id: build
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           build-args: VERSION=9.4
           context: ./
