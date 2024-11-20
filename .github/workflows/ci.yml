@@ -29,8 +29,6 @@ jobs:
           - version_branch: 8
             version_minor_release: 4
           - version_branch: 9
-            version_minor_release: 5
-          - version_branch: 9
             version_minor_release: 6
           - version_branch: 9
             version_minor_release: 7
