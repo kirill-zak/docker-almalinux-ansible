@@ -11,39 +11,16 @@ env:
   REGISTRY_IMAGE: kirillzak/docker-almalinux-ansible
 
 jobs:
-  test:
+  test-8:
     name: Test
     runs-on: ubuntu-latest
-    
-    permissions:
-      contents: read
-      packages: write
 
     strategy: 
       fail-fast: false
 
       matrix:
-        version_branch: [8, 9]
-        version_minor_release: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
-        exclude:
-          - version_branch: 8
-            version_minor_release: 0
-          - version_branch: 8
-            version_minor_release: 1
-          - version_branch: 8
-            version_minor_release: 2
-          - version_branch: 8
-            version_minor_release: 3
-          - version_branch: 8
-            version_minor_release: 4
-          - version_branch: 9
-            version_minor_release: 7
-          - version_branch: 9
-            version_minor_release: 8
-          - version_branch: 9
-            version_minor_release: 9
-          - version_branch: 9
-            version_minor_release: 10
+        version_branch: [8]
+        version_minor_release: [5, 6, 7, 8, 9, 10]
 
     steps:
       - name: Checkout out the codebase
@@ -58,11 +35,58 @@ jobs:
       - name: Verify Ansible is accessible in the built image
         run: podman exec --tty test-container env TERM=xterm ansible --version
 
+  test-9:
+    name: Test
+    runs-on: ubuntu-latest
+
+    strategy: 
+      fail-fast: false
+
+      matrix:
+        version_branch: [9]
+        version_minor_release: [0, 1, 2, 3, 4, 5, 6]
+
+    steps:
+      - name: Checkout out the codebase
+        uses: actions/checkout@v4
+
+      - name: Test building image
+        run: podman build -t docker-almalinux-ansible:${{ matrix.version_branch }}.${{ matrix.version_minor_release }} ./almalinux${{ matrix.version_branch }}/. --build-arg VERSION=${{ matrix.version_branch }}.${{ matrix.version_minor_release }}
+      
+      - name: Run the built image
+        run: podman run --name test-container --detach --privileged --volume /sys/fs/cgroup:/sys/fs/cgroup:ro docker-almalinux-ansible:${{ matrix.version_branch }}.${{ matrix.version_minor_release }}
+
+      - name: Verify Ansible is accessible in the built image
+        run: podman exec --tty test-container env TERM=xterm ansible --version
+
+  test-10:
+    name: Test
+    runs-on: ubuntu-latest
+
+    strategy: 
+      fail-fast: false
+
+      matrix:
+        version_branch: [10]
+        version_minor_release: [0]
+
+    steps:
+      - name: Checkout out the codebase
+        uses: actions/checkout@v4
+
+      - name: Test building image
+        run: podman build -t docker-almalinux-ansible:${{ matrix.version_branch }}.${{ matrix.version_minor_release }} ./almalinux${{ matrix.version_branch }}/. --build-arg VERSION=${{ matrix.version_branch }}.${{ matrix.version_minor_release }}
+      
+      - name: Run the built image
+        run: podman run --name test-container --detach --privileged --volume /sys/fs/cgroup:/sys/fs/cgroup:ro docker-almalinux-ansible:${{ matrix.version_branch }}.${{ matrix.version_minor_release }}
+
+      - name: Verify Ansible is accessible in the built image
+        run: podman exec --tty test-container env TERM=xterm ansible --version
 
   tag-release-branch-8:
     name: Release tags for branch 8
     runs-on: ubuntu-latest
-    needs: test
+    needs: test-8
 
     permissions:
       contents: read
@@ -146,7 +170,7 @@ jobs:
   tag-release-branch-9:
     name: Release tags for branch 9
     runs-on: ubuntu-latest
-    needs: test
+    needs: test-9
 
     permissions:
       contents: read
@@ -217,10 +241,84 @@ jobs:
           if-no-files-found: error
           retention-days: 1
 
+  tag-release-branch-10:
+    name: Release tags for branch 9
+    runs-on: ubuntu-latest
+    needs: test-10
+
+    permissions:
+      contents: read
+      packages: write
+
+    strategy: 
+      fail-fast: false
+
+      matrix:
+        version_branch: [10]
+        version_minor_release: [0]
+
+    steps:
+      - name: Checkout out the codebase
+        uses: actions/checkout@v4
+      
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY_IMAGE }}
+
+      - name: Add Qemu
+        uses: docker/setup-qemu-action@v3
+
+      - name: Add Docker BuildX
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to DockerHub Registry
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_HUB_USERNAME }}
+          password: ${{ secrets.DOCKER_HUB_TOKEN }}
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GHCR_REGISTRY_TOKEN }}
+
+      - name: Build and push image
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          build-args: VERSION=${{ matrix.version_branch }}.${{ matrix.version_minor_release }}
+          context: ./
+          file: ./almalinux${{ matrix.version_branch }}/Dockerfile
+          platforms: linux/amd64,linux/arm64/v8,linux/ppc64le,linux/s390x
+          labels: ${{ steps.meta.outputs.labels }}
+          outputs: type=image,name=${{ env.REGISTRY_IMAGE }},name-canonical=true
+          push: true
+          tags: |
+            kirillzak/docker-almalinux-ansible:${{ matrix.version_branch }}.${{ matrix.version_minor_release }}
+            ghcr.io/${{ github.repository }}:${{ matrix.version_branch }}.${{ matrix.version_minor_release }}
+      
+      - name: Export digest
+        run: |
+          mkdir -p /tmp/digests
+          digest="${{ steps.build.outputs.digest }}"
+          touch "/tmp/digests/${digest#sha256:}"
+
+      - name: Upload digest
+        uses: actions/upload-artifact@v4
+        with:
+          name: digests-${{ matrix.version_branch }}-${{ matrix.version_minor_release }}
+          path: /tmp/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
   latest-release:
     name: Latest release
     runs-on: ubuntu-latest
-    needs: test
+    needs: test-10
 
     steps:
       - name: Checkout out the codebase
@@ -255,9 +353,9 @@ jobs:
         id: build
         uses: docker/build-push-action@v6
         with:
-          build-args: VERSION=9.6
+          build-args: VERSION=10.0
           context: ./
-          file: ./almalinux9/Dockerfile
+          file: ./almalinux10/Dockerfile
           platforms: linux/amd64,linux/arm64/v8,linux/ppc64le,linux/s390x
           labels: ${{ steps.meta.outputs.labels }}
           outputs: type=image,name=${{ env.REGISTRY_IMAGE }},name-canonical=true
