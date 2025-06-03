@@ -7,7 +7,7 @@ name: CI
       - master
 
 jobs:
-  test:
+  test-8:
     name: Test
     runs-on: ubuntu-latest
 
@@ -15,27 +15,56 @@ jobs:
       fail-fast: false
 
       matrix:
-        version_branch: [8, 9]
-        version_minor_release: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
-        exclude:
-          - version_branch: 8
-            version_minor_release: 0
-          - version_branch: 8
-            version_minor_release: 1
-          - version_branch: 8
-            version_minor_release: 2
-          - version_branch: 8
-            version_minor_release: 3
-          - version_branch: 8
-            version_minor_release: 4
-          - version_branch: 9
-            version_minor_release: 7
-          - version_branch: 9
-            version_minor_release: 8
-          - version_branch: 9
-            version_minor_release: 9
-          - version_branch: 9
-            version_minor_release: 10
+        version_branch: [8]
+        version_minor_release: [5, 6, 7, 8, 9, 10]
+
+    steps:
+      - name: Checkout out the codebase
+        uses: actions/checkout@v4
+
+      - name: Test building image
+        run: podman build -t docker-almalinux-ansible:${{ matrix.version_branch }}.${{ matrix.version_minor_release }} ./almalinux${{ matrix.version_branch }}/. --build-arg VERSION=${{ matrix.version_branch }}.${{ matrix.version_minor_release }}
+      
+      - name: Run the built image
+        run: podman run --name test-container --detach --privileged --volume /sys/fs/cgroup:/sys/fs/cgroup:ro docker-almalinux-ansible:${{ matrix.version_branch }}.${{ matrix.version_minor_release }}
+
+      - name: Verify Ansible is accessible in the built image
+        run: podman exec --tty test-container env TERM=xterm ansible --version
+
+  test-9:
+    name: Test
+    runs-on: ubuntu-latest
+
+    strategy: 
+      fail-fast: false
+
+      matrix:
+        version_branch: [9]
+        version_minor_release: [0, 1, 2, 3, 4, 5, 6]
+
+    steps:
+      - name: Checkout out the codebase
+        uses: actions/checkout@v4
+
+      - name: Test building image
+        run: podman build -t docker-almalinux-ansible:${{ matrix.version_branch }}.${{ matrix.version_minor_release }} ./almalinux${{ matrix.version_branch }}/. --build-arg VERSION=${{ matrix.version_branch }}.${{ matrix.version_minor_release }}
+      
+      - name: Run the built image
+        run: podman run --name test-container --detach --privileged --volume /sys/fs/cgroup:/sys/fs/cgroup:ro docker-almalinux-ansible:${{ matrix.version_branch }}.${{ matrix.version_minor_release }}
+
+      - name: Verify Ansible is accessible in the built image
+        run: podman exec --tty test-container env TERM=xterm ansible --version
+
+  test-10:
+    name: Test
+    runs-on: ubuntu-latest
+
+    strategy: 
+      fail-fast: false
+
+      matrix:
+        version_branch: [10]
+        version_minor_release: [0]
 
     steps:
       - name: Checkout out the codebase
