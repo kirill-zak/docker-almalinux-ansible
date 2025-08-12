@@ -20,7 +20,7 @@ jobs:
 
     steps:
       - name: Checkout out the codebase
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Test building image
         run: podman build -t docker-almalinux-ansible:${{ matrix.version_branch }}.${{ matrix.version_minor_release }} ./almalinux${{ matrix.version_branch }}/. --build-arg VERSION=${{ matrix.version_branch }}.${{ matrix.version_minor_release }}
@@ -44,7 +44,7 @@ jobs:
 
     steps:
       - name: Checkout out the codebase
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Test building image
         run: podman build -t docker-almalinux-ansible:${{ matrix.version_branch }}.${{ matrix.version_minor_release }} ./almalinux${{ matrix.version_branch }}/. --build-arg VERSION=${{ matrix.version_branch }}.${{ matrix.version_minor_release }}
@@ -68,7 +68,7 @@ jobs:
 
     steps:
       - name: Checkout out the codebase
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Test building image
         run: podman build -t docker-almalinux-ansible:${{ matrix.version_branch }}.${{ matrix.version_minor_release }} ./almalinux${{ matrix.version_branch }}/. --build-arg VERSION=${{ matrix.version_branch }}.${{ matrix.version_minor_release }}
