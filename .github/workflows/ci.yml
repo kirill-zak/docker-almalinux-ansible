@@ -64,7 +64,7 @@ jobs:
 
       matrix:
         version_branch: [10]
-        version_minor_release: [0]
+        version_minor_release: [0, 1]
 
     steps:
       - name: Checkout out the codebase
