@@ -40,7 +40,7 @@ jobs:
         uses: docker/setup-qemu-action@v3
 
       - name: Add Docker BuildX
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       - name: Build an image
         uses: docker/build-push-action@v7
@@ -89,7 +89,7 @@ jobs:
         uses: docker/setup-qemu-action@v3
 
       - name: Add Docker BuildX
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       - name: Build an image
         uses: docker/build-push-action@v7
@@ -138,7 +138,7 @@ jobs:
         uses: docker/setup-qemu-action@v3
 
       - name: Add Docker BuildX
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       - name: Build an image
         uses: docker/build-push-action@v7
