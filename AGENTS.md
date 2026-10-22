@@ -72,7 +72,8 @@ Rules that must be respected when editing workflows:
 ### Adding a new minor release (e.g. 10.2)
 
 1. Add the version to the matrices in `.github/workflows/ci.yml`
-   (full-matrix `test` job and, if it is the newest minor, the `test-pr` job).
+   (the full list lives in the "Generate matrix" step of the `matrix` job;
+   the PR version list is the two newest minors, update it too if needed).
 2. Add it to `test-10` in `.github/workflows/release.yml`.
 3. Add it to the `supported` list in the `validate-tag` job of
    `.github/workflows/release.yml` (a tag it does not recognize fails loudly,
