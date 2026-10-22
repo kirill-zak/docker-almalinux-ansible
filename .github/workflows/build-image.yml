@@ -1,0 +1,78 @@
+---
+name: Build image
+
+on:
+  workflow_call:
+    inputs:
+      version-branch:
+        description: Major AlmaLinux version to build (9 or 10)
+        required: true
+        type: string
+      version-minor:
+        description: AlmaLinux minor release to build (e.g. '7' for 9.7)
+        required: true
+        type: string
+      platform:
+        description: Target platform (e.g. linux/amd64)
+        required: true
+        type: string
+      ref:
+        description: Git ref to check out
+        required: true
+        type: string
+
+env:
+  REGISTRY_IMAGE: kirillzak/docker-almalinux-ansible
+
+jobs:
+  build:
+    name: Build ${{ inputs.version-branch }}.${{ inputs.version-minor }} (${{ inputs.platform }})
+    runs-on: ubuntu-latest
+
+    timeout-minutes: 30
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout the codebase
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.ref }}
+
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v6
+        with:
+          images: ${{ env.REGISTRY_IMAGE }}
+
+      - name: Add Qemu
+        uses: docker/setup-qemu-action@v4
+
+      - name: Add Docker BuildX
+        uses: docker/setup-buildx-action@v4
+
+      - name: Build an image
+        uses: docker/build-push-action@v7
+        with:
+          build-args: VERSION=${{ inputs.version-branch }}.${{ inputs.version-minor }}
+          context: ./almalinux${{ inputs.version-branch }}
+          file: Dockerfile
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          load: true
+          labels: ${{ steps.meta.outputs.labels }}
+          platforms: ${{ inputs.platform }}
+          push: false
+          tags: |
+            ${{ env.REGISTRY_IMAGE }}:${{ inputs.version-branch }}.${{ inputs.version-minor }}
+            ghcr.io/${{ github.repository }}:${{ inputs.version-branch }}.${{ inputs.version-minor }}
+
+      # Verification only on the host platform: emulated arches are build-only
+      - name: Run the built image
+        if: inputs.platform == 'linux/amd64'
+        run: docker run --name test-container --detach --privileged --volume /sys/fs/cgroup:/sys/fs/cgroup:ro ${{ env.REGISTRY_IMAGE }}:${{ inputs.version-branch }}.${{ inputs.version-minor }}
+
+      - name: Verify Ansible is accessible in the built image
+        if: inputs.platform == 'linux/amd64'
+        run: docker exec --tty test-container env TERM=xterm ansible --version
