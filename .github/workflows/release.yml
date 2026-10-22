@@ -4,217 +4,247 @@ name: Release
 on:
   push:
     tags:
-      - '*'
+      # MAJOR.MINOR (optionally prefixed with 'v'), e.g. 10.1
+      - '[0-9]*.[0-9]*'
+      - 'v[0-9]*.[0-9]*'
   workflow_dispatch:
 
 env:
   REGISTRY_IMAGE: kirillzak/docker-almalinux-ansible
+  # Version that gets the `latest` tag. Update when the newest release changes.
+  LATEST_VERSION: '10.1'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
-  test-9:
-    name: Test
+  # Tag pushes publish only the tagged version; workflow_dispatch rebuilds everything.
+  validate-tag:
+    name: Validate release tag
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
 
-    strategy: 
-      fail-fast: false
+    timeout-minutes: 5
 
-      matrix:
-        version_branch: [9]
-        version_minor_release: [0, 1, 2, 3, 4, 5, 6, 7]
+    permissions:
+      contents: read
+
+    outputs:
+      major: ${{ steps.parse.outputs.major }}
+      minor: ${{ steps.parse.outputs.minor }}
+      run_latest: ${{ steps.parse.outputs.run_latest }}
 
     steps:
-      - name: Checkout out the codebase
-        uses: actions/checkout@v7
+      - name: Parse and validate tag
+        id: parse
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
 
-      - name: Test building image
-        run: podman build -t docker-almalinux-ansible:${{ matrix.version_branch }}.${{ matrix.version_minor_release }} ./almalinux${{ matrix.version_branch }}/. --build-arg VERSION=${{ matrix.version_branch }}.${{ matrix.version_minor_release }}
-      
-      - name: Run the built image
-        run: podman run --name test-container --detach --privileged --volume /sys/fs/cgroup:/sys/fs/cgroup:ro docker-almalinux-ansible:${{ matrix.version_branch }}.${{ matrix.version_minor_release }}
+          if [[ ! "$tag" =~ ^[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Unexpected tag '${GITHUB_REF_NAME}'. Expected MAJOR.MINOR (e.g. '10.1')."
+            exit 1
+          fi
 
-      - name: Verify Ansible is accessible in the built image
-        run: podman exec --tty test-container env TERM=xterm ansible --version
+          major="${tag%%.*}"
+          minor="${tag##*.}"
+
+          # Keep in sync with the test-*/tag-release-branch-* matrices below
+          supported="9.0 9.1 9.2 9.3 9.4 9.5 9.6 9.7 10.0 10.1"
+          if ! grep -qw "$tag" <<< "$supported"; then
+            echo "::error::Version '${tag}' is not in the release matrices of this workflow. Add it to test-${major} and tag-release-branch-${major} first."
+            exit 1
+          fi
+
+          # The tagged version becomes the new 'latest' if it is not older than LATEST_VERSION
+          run_latest=false
+          if [[ "$(printf '%s\n%s\n' "${LATEST_VERSION}" "$tag" | sort -V | tail -n 1)" == "$tag" ]]; then
+            run_latest=true
+          fi
+
+          {
+            echo "major=${major}"
+            echo "minor=${minor}"
+            echo "run_latest=${run_latest}"
+          } >> "$GITHUB_OUTPUT"
+
+  test-tagged:
+    name: Test tagged version
+    uses: ./.github/workflows/test-image.yml
+    if: github.event_name == 'push'
+    needs: validate-tag
+    permissions:
+      contents: read
+
+    with:
+      version-branch: ${{ needs.validate-tag.outputs.major }}
+      version-minor: ${{ needs.validate-tag.outputs.minor }}
+      ref: ${{ github.sha }}
+
+  test-9:
+    name: Test branch 9
+    uses: ./.github/workflows/test-image.yml
+    if: github.event_name == 'workflow_dispatch'
+    permissions:
+      contents: read
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - version_branch: 9
+            version_minor: 0
+          - version_branch: 9
+            version_minor: 1
+          - version_branch: 9
+            version_minor: 2
+          - version_branch: 9
+            version_minor: 3
+          - version_branch: 9
+            version_minor: 4
+          - version_branch: 9
+            version_minor: 5
+          - version_branch: 9
+            version_minor: 6
+          - version_branch: 9
+            version_minor: 7
+
+    with:
+      version-branch: ${{ matrix.version_branch }}
+      version-minor: ${{ matrix.version_minor }}
+      ref: ${{ github.sha }}
 
   test-10:
-    name: Test
-    runs-on: ubuntu-latest
+    name: Test branch 10
+    uses: ./.github/workflows/test-image.yml
+    if: github.event_name == 'workflow_dispatch'
+    permissions:
+      contents: read
 
-    strategy: 
+    strategy:
       fail-fast: false
-
       matrix:
-        version_branch: [10]
-        version_minor_release: [0, 1]
+        include:
+          - version_branch: 10
+            version_minor: 0
+          - version_branch: 10
+            version_minor: 1
 
-    steps:
-      - name: Checkout out the codebase
-        uses: actions/checkout@v7
+    with:
+      version-branch: ${{ matrix.version_branch }}
+      version-minor: ${{ matrix.version_minor }}
+      ref: ${{ github.sha }}
 
-      - name: Test building image
-        run: podman build -t docker-almalinux-ansible:${{ matrix.version_branch }}.${{ matrix.version_minor_release }} ./almalinux${{ matrix.version_branch }}/. --build-arg VERSION=${{ matrix.version_branch }}.${{ matrix.version_minor_release }}
-      
-      - name: Run the built image
-        run: podman run --name test-container --detach --privileged --volume /sys/fs/cgroup:/sys/fs/cgroup:ro docker-almalinux-ansible:${{ matrix.version_branch }}.${{ matrix.version_minor_release }}
+  tag-release:
+    name: Release tagged version
+    uses: ./.github/workflows/release-image.yml
+    if: github.event_name == 'push'
+    needs: [validate-tag, test-tagged]
+    permissions:
+      contents: read
+      packages: write
 
-      - name: Verify Ansible is accessible in the built image
-        run: podman exec --tty test-container env TERM=xterm ansible --version
+    with:
+      version: ${{ needs.validate-tag.outputs.major }}.${{ needs.validate-tag.outputs.minor }}
+      version-major: ${{ needs.validate-tag.outputs.major }}
+      image-tag: ${{ needs.validate-tag.outputs.major }}.${{ needs.validate-tag.outputs.minor }}
+      platforms: linux/amd64,linux/arm64/v8,linux/ppc64le,linux/s390x
+      ref: ${{ github.sha }}
 
   tag-release-branch-9:
-    name: Release tags for branch 9
-    runs-on: ubuntu-latest
+    name: Release branch 9
+    uses: ./.github/workflows/release-image.yml
+    if: github.event_name == 'workflow_dispatch'
     needs: test-9
-
     permissions:
       contents: read
       packages: write
 
-    strategy: 
+    strategy:
       fail-fast: false
-
       matrix:
-        version_branch: [9]
-        version_minor_release: [0, 1, 2, 3, 4, 5, 6, 7]
+        include:
+          - version_branch: 9
+            version_minor: 0
+          - version_branch: 9
+            version_minor: 1
+          - version_branch: 9
+            version_minor: 2
+          - version_branch: 9
+            version_minor: 3
+          - version_branch: 9
+            version_minor: 4
+          - version_branch: 9
+            version_minor: 5
+          - version_branch: 9
+            version_minor: 6
+          - version_branch: 9
+            version_minor: 7
 
-    steps:
-      - name: Checkout out the codebase
-        uses: actions/checkout@v7
-      
-      - name: Docker meta
-        id: meta
-        uses: docker/metadata-action@v6
-        with:
-          images: ${{ env.REGISTRY_IMAGE }}
-
-      - name: Add Qemu
-        uses: docker/setup-qemu-action@v4
-
-      - name: Add Docker BuildX
-        uses: docker/setup-buildx-action@v4
-
-      - name: Login to DockerHub Registry
-        uses: docker/login-action@v4.6.0
-        with:
-          username: ${{ secrets.DOCKER_HUB_USERNAME }}
-          password: ${{ secrets.DOCKER_HUB_TOKEN }}
-
-      - name: Login to GitHub Container Registry
-        uses: docker/login-action@v4.6.0
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GHCR_REGISTRY_TOKEN }}
-
-      - name: Build and push image
-        id: build
-        uses: docker/build-push-action@v7
-        with:
-          build-args: VERSION=${{ matrix.version_branch }}.${{ matrix.version_minor_release }}
-          context: ./
-          file: ./almalinux${{ matrix.version_branch }}/Dockerfile
-          platforms: linux/amd64,linux/arm64/v8,linux/ppc64le,linux/s390x
-          labels: ${{ steps.meta.outputs.labels }}
-          outputs: type=image,name=${{ env.REGISTRY_IMAGE }},name-canonical=true
-          push: true
-          tags: |
-            kirillzak/docker-almalinux-ansible:${{ matrix.version_branch }}.${{ matrix.version_minor_release }}
-            ghcr.io/${{ github.repository }}:${{ matrix.version_branch }}.${{ matrix.version_minor_release }}
-      
-      - name: Export digest
-        run: |
-          mkdir -p /tmp/digests
-          digest="${{ steps.build.outputs.digest }}"
-          touch "/tmp/digests/${digest#sha256:}"
-
-      - name: Upload digest
-        uses: actions/upload-artifact@v7
-        with:
-          name: digests-${{ matrix.version_branch }}-${{ matrix.version_minor_release }}
-          path: /tmp/digests/*
-          if-no-files-found: error
-          retention-days: 1
+    with:
+      version: ${{ matrix.version_branch }}.${{ matrix.version_minor }}
+      version-major: ${{ matrix.version_branch }}
+      image-tag: ${{ matrix.version_branch }}.${{ matrix.version_minor }}
+      platforms: linux/amd64,linux/arm64/v8,linux/ppc64le,linux/s390x
+      ref: ${{ github.sha }}
 
   tag-release-branch-10:
-    name: Release tags for branch 9
-    runs-on: ubuntu-latest
+    name: Release branch 10
+    uses: ./.github/workflows/release-image.yml
+    if: github.event_name == 'workflow_dispatch'
     needs: test-10
-
     permissions:
       contents: read
       packages: write
 
-    strategy: 
+    strategy:
       fail-fast: false
-
       matrix:
-        version_branch: [10]
-        version_minor_release: [0, 1]
+        include:
+          - version_branch: 10
+            version_minor: 0
+          - version_branch: 10
+            version_minor: 1
 
-    steps:
-      - name: Checkout out the codebase
-        uses: actions/checkout@v7
-      
-      - name: Docker meta
-        id: meta
-        uses: docker/metadata-action@v6
-        with:
-          images: ${{ env.REGISTRY_IMAGE }}
-
-      - name: Add Qemu
-        uses: docker/setup-qemu-action@v4
-
-      - name: Add Docker BuildX
-        uses: docker/setup-buildx-action@v4
-
-      - name: Login to DockerHub Registry
-        uses: docker/login-action@v4.6.0
-        with:
-          username: ${{ secrets.DOCKER_HUB_USERNAME }}
-          password: ${{ secrets.DOCKER_HUB_TOKEN }}
-
-      - name: Login to GitHub Container Registry
-        uses: docker/login-action@v4.6.0
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GHCR_REGISTRY_TOKEN }}
-
-      - name: Build and push image
-        id: build
-        uses: docker/build-push-action@v7
-        with:
-          build-args: VERSION=${{ matrix.version_branch }}.${{ matrix.version_minor_release }}
-          context: ./
-          file: ./almalinux${{ matrix.version_branch }}/Dockerfile
-          platforms: linux/amd64,linux/arm64/v8,linux/ppc64le,linux/s390x
-          labels: ${{ steps.meta.outputs.labels }}
-          outputs: type=image,name=${{ env.REGISTRY_IMAGE }},name-canonical=true
-          push: true
-          tags: |
-            kirillzak/docker-almalinux-ansible:${{ matrix.version_branch }}.${{ matrix.version_minor_release }}
-            ghcr.io/${{ github.repository }}:${{ matrix.version_branch }}.${{ matrix.version_minor_release }}
-      
-      - name: Export digest
-        run: |
-          mkdir -p /tmp/digests
-          digest="${{ steps.build.outputs.digest }}"
-          touch "/tmp/digests/${digest#sha256:}"
-
-      - name: Upload digest
-        uses: actions/upload-artifact@v7
-        with:
-          name: digests-${{ matrix.version_branch }}-${{ matrix.version_minor_release }}
-          path: /tmp/digests/*
-          if-no-files-found: error
-          retention-days: 1
+    with:
+      version: ${{ matrix.version_branch }}.${{ matrix.version_minor }}
+      version-major: ${{ matrix.version_branch }}
+      image-tag: ${{ matrix.version_branch }}.${{ matrix.version_minor }}
+      platforms: linux/amd64,linux/arm64/v8,linux/ppc64le,linux/s390x
+      ref: ${{ github.sha }}
 
   latest-release:
     name: Latest release
     runs-on: ubuntu-latest
-    needs: test-10
+    if: github.event_name == 'workflow_dispatch' || needs.validate-tag.outputs.run_latest == 'true'
+    needs: [validate-tag, test-tagged, test-9, test-10]
+
+    permissions:
+      contents: read
+      packages: write
+
+    timeout-minutes: 60
 
     steps:
-      - name: Checkout out the codebase
+      - name: Checkout the codebase
         uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+
+      - name: Resolve latest version
+        id: latest
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            version="${LATEST_VERSION}"
+          else
+            # Tagged version is the new latest (validated in validate-tag)
+            version="${GITHUB_REF_NAME#v}"
+          fi
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+          echo "major=${version%%.*}" >> "$GITHUB_OUTPUT"
 
       - name: Docker meta
         id: meta
@@ -229,43 +259,30 @@ jobs:
         uses: docker/setup-buildx-action@v4
 
       - name: Login to DockerHub Registry
-        uses: docker/login-action@v4.6.0
+        uses: docker/login-action@v4
         with:
           username: ${{ secrets.DOCKER_HUB_USERNAME }}
           password: ${{ secrets.DOCKER_HUB_TOKEN }}
 
       - name: Login to GitHub Container Registry
-        uses: docker/login-action@v4.6.0
+        uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
-          password: ${{ secrets.GHCR_REGISTRY_TOKEN }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and push image
-        id: build
         uses: docker/build-push-action@v7
         with:
-          build-args: VERSION=10.1
-          context: ./
-          file: ./almalinux10/Dockerfile
+          build-args: VERSION=${{ steps.latest.outputs.version }}
+          context: ./almalinux${{ steps.latest.outputs.major }}
+          file: Dockerfile
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
           platforms: linux/amd64,linux/arm64/v8,linux/ppc64le,linux/s390x
           labels: ${{ steps.meta.outputs.labels }}
           outputs: type=image,name=${{ env.REGISTRY_IMAGE }},name-canonical=true
           push: true
           tags: |
-            kirillzak/docker-almalinux-ansible:latest
+            ${{ env.REGISTRY_IMAGE }}:latest
             ghcr.io/${{ github.repository }}:latest
-
-      - name: Export digest
-        run: |
-          mkdir -p /tmp/digests
-          digest="${{ steps.build.outputs.digest }}"
-          touch "/tmp/digests/${digest#sha256:}"
-
-      - name: Upload digest
-        uses: actions/upload-artifact@v7
-        with:
-          name: digests-latest
-          path: /tmp/digests/*
-          if-no-files-found: error
-          retention-days: 1

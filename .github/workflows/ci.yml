@@ -6,51 +6,72 @@ name: CI
     branches:
       - master
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  test-9:
+  # Full matrix is tested on merge to master
+  test:
     name: Test
-    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+    uses: ./.github/workflows/test-image.yml
+    permissions:
+      contents: read
 
-    strategy: 
-      fail-fast: false
-
+    strategy:
+      fail-fast: true
       matrix:
-        version_branch: [9]
-        version_minor_release: [0, 1, 2, 3, 4, 5, 6, 7]
+        include:
+          # AlmaLinux 9
+          - version_branch: 9
+            version_minor: 0
+          - version_branch: 9
+            version_minor: 1
+          - version_branch: 9
+            version_minor: 2
+          - version_branch: 9
+            version_minor: 3
+          - version_branch: 9
+            version_minor: 4
+          - version_branch: 9
+            version_minor: 5
+          - version_branch: 9
+            version_minor: 6
+          - version_branch: 9
+            version_minor: 7
+          # AlmaLinux 10
+          - version_branch: 10
+            version_minor: 0
+          - version_branch: 10
+            version_minor: 1
 
-    steps:
-      - name: Checkout out the codebase
-        uses: actions/checkout@v7
+    with:
+      version-branch: ${{ matrix.version_branch }}
+      version-minor: ${{ matrix.version_minor }}
+      ref: ${{ github.sha }}
 
-      - name: Test building image
-        run: podman build -t docker-almalinux-ansible:${{ matrix.version_branch }}.${{ matrix.version_minor_release }} ./almalinux${{ matrix.version_branch }}/. --build-arg VERSION=${{ matrix.version_branch }}.${{ matrix.version_minor_release }}
-      
-      - name: Run the built image
-        run: podman run --name test-container --detach --privileged --volume /sys/fs/cgroup:/sys/fs/cgroup:ro docker-almalinux-ansible:${{ matrix.version_branch }}.${{ matrix.version_minor_release }}
+  # On pull requests test only the newest minor of each branch for fast feedback
+  test-pr:
+    name: Test (PR)
+    if: github.event_name == 'pull_request'
+    uses: ./.github/workflows/test-image.yml
+    permissions:
+      contents: read
 
-      - name: Verify Ansible is accessible in the built image
-        run: podman exec --tty test-container env TERM=xterm ansible --version
-
-  test-10:
-    name: Test
-    runs-on: ubuntu-latest
-
-    strategy: 
-      fail-fast: false
-
+    strategy:
+      fail-fast: true
       matrix:
-        version_branch: [10]
-        version_minor_release: [0, 1]
+        include:
+          - version_branch: 9
+            version_minor: 7
+          - version_branch: 10
+            version_minor: 1
 
-    steps:
-      - name: Checkout out the codebase
-        uses: actions/checkout@v7
-
-      - name: Test building image
-        run: podman build -t docker-almalinux-ansible:${{ matrix.version_branch }}.${{ matrix.version_minor_release }} ./almalinux${{ matrix.version_branch }}/. --build-arg VERSION=${{ matrix.version_branch }}.${{ matrix.version_minor_release }}
-      
-      - name: Run the built image
-        run: podman run --name test-container --detach --privileged --volume /sys/fs/cgroup:/sys/fs/cgroup:ro docker-almalinux-ansible:${{ matrix.version_branch }}.${{ matrix.version_minor_release }}
-
-      - name: Verify Ansible is accessible in the built image
-        run: podman exec --tty test-container env TERM=xterm ansible --version
+    with:
+      version-branch: ${{ matrix.version_branch }}
+      version-minor: ${{ matrix.version_minor }}
+      ref: ${{ github.sha }}
