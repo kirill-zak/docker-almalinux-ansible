@@ -87,13 +87,15 @@ callers consistent — `validate-tag` in `release.yml` is the guard that catches
 
 ### Release process
 
-- **Tag push** (e.g. `10.2`): validates the tag (`MAJOR.MINOR`, optionally
-  prefixed with `v`), tests and publishes **only** the tagged version. The
-  `latest` tag is refreshed only if the tagged version is not older than
-  `LATEST_VERSION`.
+- **Tag push** (e.g. `10.1.0`): validates the tag (`MAJOR.MINOR.PATCH`, each
+  part 1–2 digits, optionally prefixed with `v`), tests and publishes **only**
+  the tagged version. The published image version is `MAJOR.MINOR` (the patch
+  distinguishes re-releases of the same image), and the image tag is refreshed
+  only if that version is not older than `LATEST_VERSION`.
 - **workflow_dispatch**: full rebuild and republication of all versions
   (11 tests + 11 multi-arch builds + `latest`).
-- Legacy tags like `1.0.16` are deliberately rejected by `validate-tag`.
+- Tags whose `MAJOR.MINOR` is not in the matrices (e.g. legacy `1.0.16` →
+  `1.0`) are rejected by `validate-tag`.
 
 ## Validation commands
 

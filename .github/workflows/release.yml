@@ -4,9 +4,9 @@ name: Release
 on:
   push:
     tags:
-      # MAJOR.MINOR (optionally prefixed with 'v'), e.g. 10.1
-      - '[0-9]*.[0-9]*'
-      - 'v[0-9]*.[0-9]*'
+      # MAJOR.MINOR.PATCH (optionally prefixed with 'v'), e.g. 10.1.0
+      - '[0-9]*.[0-9]*.[0-9]*'
+      - 'v[0-9]*.[0-9]*.[0-9]*'
   workflow_dispatch:
 
 env:
@@ -44,24 +44,27 @@ jobs:
         run: |
           tag="${GITHUB_REF_NAME#v}"
 
-          if [[ ! "$tag" =~ ^[0-9]+\.[0-9]+$ ]]; then
-            echo "::error::Unexpected tag '${GITHUB_REF_NAME}'. Expected MAJOR.MINOR (e.g. '10.1')."
+          # Release tags are MAJOR.MINOR.PATCH (each part 1-2 digits), e.g. '10.1.0'
+          if [[ ! "$tag" =~ ^[0-9]{1,2}\.[0-9]{1,2}\.[0-9]{1,2}$ ]]; then
+            echo "::error::Unexpected tag '${GITHUB_REF_NAME}'. Expected MAJOR.MINOR.PATCH (e.g. '10.1.0')."
             exit 1
           fi
 
-          major="${tag%%.*}"
-          minor="${tag##*.}"
+          # The published image version is MAJOR.MINOR; the patch marks a re-release
+          version="${tag%.*}"
+          major="${version%%.*}"
+          minor="${version##*.}"
 
           # Keep in sync with the test-*/tag-release-branch-* matrices below
           supported="9.0 9.1 9.2 9.3 9.4 9.5 9.6 9.7 9.8 10.0 10.1"
-          if ! grep -qw "$tag" <<< "$supported"; then
-            echo "::error::Version '${tag}' is not in the release matrices of this workflow. Add it to test-${major} and tag-release-branch-${major} first."
+          if ! grep -qw "$version" <<< "$supported"; then
+            echo "::error::Version '${version}' (tag '${tag}') is not in the release matrices of this workflow. Add it to test-${major} and tag-release-branch-${major} first."
             exit 1
           fi
 
           # The tagged version becomes the new 'latest' if it is not older than LATEST_VERSION
           run_latest=false
-          if [[ "$(printf '%s\n%s\n' "${LATEST_VERSION}" "$tag" | sort -V | tail -n 1)" == "$tag" ]]; then
+          if [[ "$(printf '%s\n%s\n' "${LATEST_VERSION}" "$version" | sort -V | tail -n 1)" == "$version" ]]; then
             run_latest=true
           fi
 
@@ -244,8 +247,9 @@ jobs:
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             version="${LATEST_VERSION}"
           else
-            # Tagged version is the new latest (validated in validate-tag)
+            # Tagged version is the new latest (validated in validate-tag); drop the patch
             version="${GITHUB_REF_NAME#v}"
+            version="${version%.*}"
           fi
           echo "version=${version}" >> "$GITHUB_OUTPUT"
           echo "major=${version%%.*}" >> "$GITHUB_OUTPUT"
