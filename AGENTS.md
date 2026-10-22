@@ -31,7 +31,7 @@ almalinux10/     One directory per AlmaLinux major version, each with a single
 
 ## Supported versions
 
-- AlmaLinux **9.x**: `9.0`…`9.7`
+- AlmaLinux **9.x**: `9.0`…`9.8`
 - AlmaLinux **10.x**: `10.0`, `10.1`
 - AlmaLinux **8.x** is **deprecated/archived** (see README "Archive tags").
   **Do not** re-add 8.x to the workflows or to the "supported" list.
@@ -91,7 +91,7 @@ callers consistent — `validate-tag` in `release.yml` is the guard that catches
   `latest` tag is refreshed only if the tagged version is not older than
   `LATEST_VERSION`.
 - **workflow_dispatch**: full rebuild and republication of all versions
-  (10 tests + 10 multi-arch builds + `latest`).
+  (11 tests + 11 multi-arch builds + `latest`).
 - Legacy tags like `1.0.16` are deliberately rejected by `validate-tag`.
 
 ## Validation commands

@@ -2,7 +2,7 @@
 AlmaLinux docker container with built-in Ansible for playbook and role testing 
 
 ## Tags
-- `9.x`: Based on branch `9.x`. Releases: `9.0`, `9.1`, `9.2`, `9.3`, `9.4`, `9.5`, `9.6`, `9.7`.
+- `9.x`: Based on branch `9.x`. Releases: `9.0`, `9.1`, `9.2`, `9.3`, `9.4`, `9.5`, `9.6`, `9.7`, `9.8`.
 - `10.x`: Based on branch `10.x`. Releases: `10.0`, `10.1`.
 
 ## Platforms

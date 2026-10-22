@@ -43,6 +43,8 @@ jobs:
             version_minor: 6
           - version_branch: 9
             version_minor: 7
+          - version_branch: 9
+            version_minor: 8
           # AlmaLinux 10
           - version_branch: 10
             version_minor: 0
@@ -67,7 +69,7 @@ jobs:
       matrix:
         include:
           - version_branch: 9
-            version_minor: 7
+            version_minor: 8
           - version_branch: 10
             version_minor: 1
 
