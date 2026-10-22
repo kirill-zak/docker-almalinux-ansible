@@ -22,7 +22,7 @@ almalinux10/     One directory per AlmaLinux major version, each with a single
 .github/workflows/
   ci.yml                 CI: smoke tests on PR (latest minors) and master push (full matrix)
   build.yml              Manual build test (workflow_dispatch, all 4 platforms)
-  release.yml            Release: tag pushes publish only the tagged version;
+  release.yml            Release: tag push (project release marker) or
                          workflow_dispatch rebuilds and republishes everything
   test-image.yml         Reusable workflow: functional smoke test via podman (amd64)
   build-image.yml        Reusable workflow: multi-arch build test via buildx + QEMU
@@ -74,28 +74,24 @@ Rules that must be respected when editing workflows:
 1. Add the version to the matrices in `.github/workflows/ci.yml`
    (the full list lives in the "Generate matrix" step of the `matrix` job;
    the PR version list is the two newest minors, update it too if needed).
-2. Add it to `test-10` in `.github/workflows/release.yml`.
-3. Add it to the `supported` list in the `validate-tag` job of
-   `.github/workflows/release.yml` (a tag it does not recognize fails loudly,
-   so keeping the list in sync is mandatory).
-4. Add the minor to `test-build-10` matrix in `.github/workflows/build.yml`
+2. Add it to `test-10` and `tag-release-branch-10` in
+   `.github/workflows/release.yml`.
+3. Add the minor to `test-build-10` matrix in `.github/workflows/build.yml`
    so the manual build test also covers it.
-5. If it is the newest version, update `LATEST_VERSION` and the README tag list.
+4. If it is the newest version, update `LATEST_VERSION` and the README tag list.
 
-Keep the version list in `ci.yml`, `build.yml`, `release.yml`, and `test-image.yml`
-callers consistent — `validate-tag` in `release.yml` is the guard that catches drift.
+Keep the version lists in `ci.yml`, `build.yml`, and `release.yml` consistent —
+every version in the release matrices is published on each release, so an
+omission only shows up as a missing image tag.
 
 ### Release process
 
-- **Tag push** (e.g. `10.1.0`): validates the tag (`MAJOR.MINOR.PATCH`, each
-  part 1–2 digits, optionally prefixed with `v`), tests and publishes **only**
-  the tagged version. The published image version is `MAJOR.MINOR` (the patch
-  distinguishes re-releases of the same image), and the image tag is refreshed
-  only if that version is not older than `LATEST_VERSION`.
-- **workflow_dispatch**: full rebuild and republication of all versions
-  (11 tests + 11 multi-arch builds + `latest`).
-- Tags whose `MAJOR.MINOR` is not in the matrices (e.g. legacy `1.0.16` →
-  `1.0`) are rejected by `validate-tag`.
+- **Tag push** and **workflow_dispatch** behave identically: a full rebuild and
+  republication of all image versions (11 tests + 11 multi-arch builds + `latest`).
+- Tags are **repository release markers** (e.g. `2.0.0`), **not** image versions.
+  They must match `x.x.x` or `x.xx.xx` (each part 1–2 digits, optionally prefixed
+  with `v`) — anything else fails loudly in the `validate-tag` job.
+- The `latest` image is always built from `LATEST_VERSION`.
 
 ## Validation commands
 

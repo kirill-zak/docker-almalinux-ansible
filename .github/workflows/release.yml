@@ -4,7 +4,8 @@ name: Release
 on:
   push:
     tags:
-      # MAJOR.MINOR.PATCH (optionally prefixed with 'v'), e.g. 10.1.0
+      # Repository release tags: x.x.x or x.xx.xx (optionally prefixed with 'v'),
+      # e.g. '2.0.0'. Any such tag triggers a full rebuild and republication.
       - '[0-9]*.[0-9]*.[0-9]*'
       - 'v[0-9]*.[0-9]*.[0-9]*'
   workflow_dispatch:
@@ -22,7 +23,8 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  # Tag pushes publish only the tagged version; workflow_dispatch rebuilds everything.
+  # Tags are project release markers (e.g. '2.0.0'), not image versions,
+  # so a tag push rebuilds and republishes everything, like workflow_dispatch.
   validate-tag:
     name: Validate release tag
     if: github.event_name == 'push'
@@ -33,64 +35,21 @@ jobs:
     permissions:
       contents: read
 
-    outputs:
-      major: ${{ steps.parse.outputs.major }}
-      minor: ${{ steps.parse.outputs.minor }}
-      run_latest: ${{ steps.parse.outputs.run_latest }}
-
     steps:
       - name: Parse and validate tag
-        id: parse
         run: |
           tag="${GITHUB_REF_NAME#v}"
 
-          # Release tags are MAJOR.MINOR.PATCH (each part 1-2 digits), e.g. '10.1.0'
           if [[ ! "$tag" =~ ^[0-9]{1,2}\.[0-9]{1,2}\.[0-9]{1,2}$ ]]; then
-            echo "::error::Unexpected tag '${GITHUB_REF_NAME}'. Expected MAJOR.MINOR.PATCH (e.g. '10.1.0')."
+            echo "::error::Unexpected tag '${GITHUB_REF_NAME}'. Expected x.x.x or x.xx.xx (e.g. '2.0.0')."
             exit 1
           fi
-
-          # The published image version is MAJOR.MINOR; the patch marks a re-release
-          version="${tag%.*}"
-          major="${version%%.*}"
-          minor="${version##*.}"
-
-          # Keep in sync with the test-*/tag-release-branch-* matrices below
-          supported="9.0 9.1 9.2 9.3 9.4 9.5 9.6 9.7 9.8 10.0 10.1"
-          if ! grep -qw "$version" <<< "$supported"; then
-            echo "::error::Version '${version}' (tag '${tag}') is not in the release matrices of this workflow. Add it to test-${major} and tag-release-branch-${major} first."
-            exit 1
-          fi
-
-          # The tagged version becomes the new 'latest' if it is not older than LATEST_VERSION
-          run_latest=false
-          if [[ "$(printf '%s\n%s\n' "${LATEST_VERSION}" "$version" | sort -V | tail -n 1)" == "$version" ]]; then
-            run_latest=true
-          fi
-
-          {
-            echo "major=${major}"
-            echo "minor=${minor}"
-            echo "run_latest=${run_latest}"
-          } >> "$GITHUB_OUTPUT"
-
-  test-tagged:
-    name: Test tagged version
-    uses: ./.github/workflows/test-image.yml
-    if: github.event_name == 'push'
-    needs: validate-tag
-    permissions:
-      contents: read
-
-    with:
-      version-branch: ${{ needs.validate-tag.outputs.major }}
-      version-minor: ${{ needs.validate-tag.outputs.minor }}
-      ref: ${{ github.sha }}
+          echo "Valid release tag: ${tag}"
 
   test-9:
     name: Test branch 9
     uses: ./.github/workflows/test-image.yml
-    if: github.event_name == 'workflow_dispatch'
+    needs: validate-tag
     permissions:
       contents: read
 
@@ -125,7 +84,7 @@ jobs:
   test-10:
     name: Test branch 10
     uses: ./.github/workflows/test-image.yml
-    if: github.event_name == 'workflow_dispatch'
+    needs: validate-tag
     permissions:
       contents: read
 
@@ -143,26 +102,9 @@ jobs:
       version-minor: ${{ matrix.version_minor }}
       ref: ${{ github.sha }}
 
-  tag-release:
-    name: Release tagged version
-    uses: ./.github/workflows/release-image.yml
-    if: github.event_name == 'push'
-    needs: [validate-tag, test-tagged]
-    permissions:
-      contents: read
-      packages: write
-
-    with:
-      version: ${{ needs.validate-tag.outputs.major }}.${{ needs.validate-tag.outputs.minor }}
-      version-major: ${{ needs.validate-tag.outputs.major }}
-      image-tag: ${{ needs.validate-tag.outputs.major }}.${{ needs.validate-tag.outputs.minor }}
-      platforms: linux/amd64,linux/arm64/v8,linux/ppc64le,linux/s390x
-      ref: ${{ github.sha }}
-
   tag-release-branch-9:
     name: Release branch 9
     uses: ./.github/workflows/release-image.yml
-    if: github.event_name == 'workflow_dispatch'
     needs: test-9
     permissions:
       contents: read
@@ -201,7 +143,6 @@ jobs:
   tag-release-branch-10:
     name: Release branch 10
     uses: ./.github/workflows/release-image.yml
-    if: github.event_name == 'workflow_dispatch'
     needs: test-10
     permissions:
       contents: read
@@ -226,8 +167,7 @@ jobs:
   latest-release:
     name: Latest release
     runs-on: ubuntu-latest
-    if: github.event_name == 'workflow_dispatch' || needs.validate-tag.outputs.run_latest == 'true'
-    needs: [validate-tag, test-tagged, test-9, test-10]
+    needs: [validate-tag, test-9, test-10]
 
     permissions:
       contents: read
@@ -244,13 +184,7 @@ jobs:
       - name: Resolve latest version
         id: latest
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            version="${LATEST_VERSION}"
-          else
-            # Tagged version is the new latest (validated in validate-tag); drop the patch
-            version="${GITHUB_REF_NAME#v}"
-            version="${version%.*}"
-          fi
+          version="${LATEST_VERSION}"
           echo "version=${version}" >> "$GITHUB_OUTPUT"
           echo "major=${version%%.*}" >> "$GITHUB_OUTPUT"
 
