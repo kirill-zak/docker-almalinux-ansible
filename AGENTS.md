@@ -31,7 +31,7 @@ almalinux10/     One directory per AlmaLinux major version, each with a single
 
 ## Supported versions
 
-- AlmaLinux **9.x**: `9.0`…`9.7`
+- AlmaLinux **9.x**: `9.0`…`9.8`
 - AlmaLinux **10.x**: `10.0`, `10.1`
 - AlmaLinux **8.x** is **deprecated/archived** (see README "Archive tags").
   **Do not** re-add 8.x to the workflows or to the "supported" list.
@@ -72,7 +72,8 @@ Rules that must be respected when editing workflows:
 ### Adding a new minor release (e.g. 10.2)
 
 1. Add the version to the matrices in `.github/workflows/ci.yml`
-   (full-matrix `test` job and, if it is the newest minor, the `test-pr` job).
+   (the full list lives in the "Generate matrix" step of the `matrix` job;
+   the PR version list is the two newest minors, update it too if needed).
 2. Add it to `test-10` in `.github/workflows/release.yml`.
 3. Add it to the `supported` list in the `validate-tag` job of
    `.github/workflows/release.yml` (a tag it does not recognize fails loudly,
@@ -91,7 +92,7 @@ callers consistent — `validate-tag` in `release.yml` is the guard that catches
   `latest` tag is refreshed only if the tagged version is not older than
   `LATEST_VERSION`.
 - **workflow_dispatch**: full rebuild and republication of all versions
-  (10 tests + 10 multi-arch builds + `latest`).
+  (11 tests + 11 multi-arch builds + `latest`).
 - Legacy tags like `1.0.16` are deliberately rejected by `validate-tag`.
 
 ## Validation commands

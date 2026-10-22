@@ -14,10 +14,34 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # Full matrix is tested on merge to master
+  matrix:
+    name: Build test matrix
+    runs-on: ubuntu-latest
+
+    timeout-minutes: 5
+
+    permissions:
+      contents: read
+
+    outputs:
+      include: ${{ steps.setup.outputs.include }}
+
+    steps:
+      - name: Generate matrix
+        id: setup
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            # On pull requests test only the newest minor of each branch for fast feedback
+            include='[{"version_branch":9,"version_minor":8},{"version_branch":10,"version_minor":1}]'
+          else
+            # Full matrix on merge to master
+            include='[{"version_branch":9,"version_minor":0},{"version_branch":9,"version_minor":1},{"version_branch":9,"version_minor":2},{"version_branch":9,"version_minor":3},{"version_branch":9,"version_minor":4},{"version_branch":9,"version_minor":5},{"version_branch":9,"version_minor":6},{"version_branch":9,"version_minor":7},{"version_branch":9,"version_minor":8},{"version_branch":10,"version_minor":0},{"version_branch":10,"version_minor":1}]'
+          fi
+          echo "include=${include}" >> "$GITHUB_OUTPUT"
+
   test:
     name: Test
-    if: github.event_name == 'push'
+    needs: matrix
     uses: ./.github/workflows/test-image.yml
     permissions:
       contents: read
@@ -25,51 +49,7 @@ jobs:
     strategy:
       fail-fast: true
       matrix:
-        include:
-          # AlmaLinux 9
-          - version_branch: 9
-            version_minor: 0
-          - version_branch: 9
-            version_minor: 1
-          - version_branch: 9
-            version_minor: 2
-          - version_branch: 9
-            version_minor: 3
-          - version_branch: 9
-            version_minor: 4
-          - version_branch: 9
-            version_minor: 5
-          - version_branch: 9
-            version_minor: 6
-          - version_branch: 9
-            version_minor: 7
-          # AlmaLinux 10
-          - version_branch: 10
-            version_minor: 0
-          - version_branch: 10
-            version_minor: 1
-
-    with:
-      version-branch: ${{ matrix.version_branch }}
-      version-minor: ${{ matrix.version_minor }}
-      ref: ${{ github.sha }}
-
-  # On pull requests test only the newest minor of each branch for fast feedback
-  test-pr:
-    name: Test (PR)
-    if: github.event_name == 'pull_request'
-    uses: ./.github/workflows/test-image.yml
-    permissions:
-      contents: read
-
-    strategy:
-      fail-fast: true
-      matrix:
-        include:
-          - version_branch: 9
-            version_minor: 7
-          - version_branch: 10
-            version_minor: 1
+        include: ${{ fromJSON(needs.matrix.outputs.include) }}
 
     with:
       version-branch: ${{ matrix.version_branch }}
