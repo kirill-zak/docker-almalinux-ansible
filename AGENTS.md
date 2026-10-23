@@ -72,6 +72,10 @@ Rules that must be respected when editing workflows:
   need registry credentials must pass `secrets: inherit` (see the
   `release-image.yml` callers in `release.yml`). `GITHUB_TOKEN` is always
   available in the callee.
+- GHCR login must use `GHCR_REGISTRY_TOKEN` (a PAT with `write:packages`), **not**
+  `GITHUB_TOKEN`: the existing `kirill-zak/...` packages were created via that PAT,
+  and a repo-scoped `GITHUB_TOKEN` is denied with `permission_denied: write_package`
+  on pre-existing packages even with `permissions: packages: write`.
 - `docker/build-push-action` resolves the `file` input from the **repo root**,
   not from the build context. Use `context: ./` + `file: ./almalinuxN/Dockerfile`;
   a narrowed context (`./almalinuxN`) with `file: Dockerfile` fails with
