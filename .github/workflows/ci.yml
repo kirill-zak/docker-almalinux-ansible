@@ -32,10 +32,10 @@ jobs:
         run: |
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             # On pull requests test only the newest minor of each branch for fast feedback
-            include='[{"version_branch":9,"version_minor":8},{"version_branch":10,"version_minor":1}]'
+            include='[{"version_branch":9,"version_minor":8},{"version_branch":10,"version_minor":2}]'
           else
             # Full matrix on merge to master
-            include='[{"version_branch":9,"version_minor":0},{"version_branch":9,"version_minor":1},{"version_branch":9,"version_minor":2},{"version_branch":9,"version_minor":3},{"version_branch":9,"version_minor":4},{"version_branch":9,"version_minor":5},{"version_branch":9,"version_minor":6},{"version_branch":9,"version_minor":7},{"version_branch":9,"version_minor":8},{"version_branch":10,"version_minor":0},{"version_branch":10,"version_minor":1}]'
+            include='[{"version_branch":9,"version_minor":0},{"version_branch":9,"version_minor":1},{"version_branch":9,"version_minor":2},{"version_branch":9,"version_minor":3},{"version_branch":9,"version_minor":4},{"version_branch":9,"version_minor":5},{"version_branch":9,"version_minor":6},{"version_branch":9,"version_minor":7},{"version_branch":9,"version_minor":8},{"version_branch":10,"version_minor":0},{"version_branch":10,"version_minor":1},{"version_branch":10,"version_minor":2}]'
           fi
           echo "include=${include}" >> "$GITHUB_OUTPUT"
 

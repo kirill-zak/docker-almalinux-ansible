@@ -15,7 +15,7 @@ on:
 env:
   REGISTRY_IMAGE: kirillzak/docker-almalinux-ansible
   # Version that gets the `latest` tag. Update when the newest release changes.
-  LATEST_VERSION: '10.1'
+  LATEST_VERSION: '10.2'
 
 permissions:
   contents: read
@@ -98,6 +98,8 @@ jobs:
             version_minor: 0
           - version_branch: 10
             version_minor: 1
+          - version_branch: 10
+            version_minor: 2
 
     with:
       version-branch: ${{ matrix.version_branch }}
@@ -162,6 +164,8 @@ jobs:
             version_minor: 0
           - version_branch: 10
             version_minor: 1
+          - version_branch: 10
+            version_minor: 2
 
     with:
       version: ${{ matrix.version_branch }}.${{ matrix.version_minor }}
