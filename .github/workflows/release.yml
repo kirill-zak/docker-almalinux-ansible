@@ -110,6 +110,8 @@ jobs:
       contents: read
       packages: write
 
+    secrets: inherit
+
     strategy:
       fail-fast: false
       matrix:
@@ -147,6 +149,8 @@ jobs:
     permissions:
       contents: read
       packages: write
+
+    secrets: inherit
 
     strategy:
       fail-fast: false
