@@ -72,6 +72,10 @@ Rules that must be respected when editing workflows:
   need registry credentials must pass `secrets: inherit` (see the
   `release-image.yml` callers in `release.yml`). `GITHUB_TOKEN` is always
   available in the callee.
+- `docker/build-push-action` resolves the `file` input from the **repo root**,
+  not from the build context. Use `context: ./` + `file: ./almalinuxN/Dockerfile`;
+  a narrowed context (`./almalinuxN`) with `file: Dockerfile` fails with
+  "failed to read dockerfile" at build time.
 
 ### Adding a new minor release (e.g. 10.2)
 
