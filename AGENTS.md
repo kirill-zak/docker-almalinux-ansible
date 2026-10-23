@@ -123,3 +123,7 @@ python3 -c "import yaml; yaml.safe_load(open('.github/workflows/release.yml'))"
   (`test-image.yml`, `build-image.yml`, `release-image.yml`) over duplicating steps.
 - `matrix` context is **not** available in job-level `if`; filter jobs by
   `inputs`/`github.event_name` only.
+- The runtime stage of every `almalinux*/Dockerfile` must build on the **target**
+  platform (`FROM --platform=$TARGETPLATFORM ...`), never `$BUILDPLATFORM` —
+  otherwise every "multi-arch" variant ends up containing host-arch content
+  while the CI only ever runs the amd64 variant.

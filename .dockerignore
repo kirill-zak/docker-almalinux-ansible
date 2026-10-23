@@ -1,0 +1,8 @@
+# Reduce the build context (workflows use context: ./ for all image builds).
+# The Dockerfiles only base off almalinux:* image (no COPY), so build-time
+# files outside almalinux*/Dockerfile are unnecessary.
+.git
+.github
+README.md
+AGENTS.md
+LICENSE
