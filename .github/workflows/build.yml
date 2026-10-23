@@ -59,7 +59,7 @@ jobs:
           - linux/arm64/v8
           - linux/ppc64le
           - linux/s390x
-        version_minor: [0, 1]
+        version_minor: [0, 1, 2]
 
     with:
       version-branch: '10'

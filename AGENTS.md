@@ -32,7 +32,7 @@ almalinux10/     One directory per AlmaLinux major version, each with a single
 ## Supported versions
 
 - AlmaLinux **9.x**: `9.0`…`9.8`
-- AlmaLinux **10.x**: `10.0`, `10.1`
+- AlmaLinux **10.x**: `10.0`, `10.1`, `10.2`
 - AlmaLinux **8.x** is **deprecated/archived** (see README "Archive tags").
   **Do not** re-add 8.x to the workflows or to the "supported" list.
 
@@ -44,14 +44,14 @@ Platforms built for every version: `linux/amd64`, `linux/arm64/v8`,
 ```sh
 # Build a single version
 docker build -t docker-almalinux-ansible . \
-  --build-arg VERSION=10.1 \
+  --build-arg VERSION=10.2 \
   -f almalinux10/Dockerfile
 
 # Functional smoke test (systemd + ansible)
-podman build -t docker-almalinux-ansible:10.1 ./almalinux10/. --build-arg VERSION=10.1
+podman build -t docker-almalinux-ansible:10.2 ./almalinux10/. --build-arg VERSION=10.2
 podman run --name test-container --detach --privileged \
   --volume /sys/fs/cgroup:/sys/fs/cgroup:ro \
-  docker-almalinux-ansible:10.1
+  docker-almalinux-ansible:10.2
 podman exec --tty test-container env TERM=xterm ansible --version
 ```
 
@@ -103,7 +103,7 @@ omission only shows up as a missing image tag.
 ### Release process
 
 - **Tag push** and **workflow_dispatch** behave identically: a full rebuild and
-  republication of all image versions (11 tests + 11 multi-arch builds + `latest`).
+  republication of all image versions (12 tests + 12 multi-arch builds + `latest`).
 - Tags are **repository release markers** (e.g. `2.0.0`), **not** image versions.
   They must match `x.x.x` or `x.xx.xx` (each part 1–2 digits, optionally prefixed
   with `v`) — anything else fails loudly in the `validate-tag` job.
