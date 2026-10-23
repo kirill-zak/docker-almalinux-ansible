@@ -1,9 +1,9 @@
 # Get version of AlmaLinux to build
 ARG VERSION
-# Get build platform
-ARG BUILDPLATFORM=linux/amd64
+# Build the image for the requested target platform (amd64, arm64/v8, ppc64le, s390x)
+ARG TARGETPLATFORM
 
-FROM --platform=$BUILDPLATFORM almalinux:${VERSION}
+FROM --platform=$TARGETPLATFORM almalinux:${VERSION}
 LABEL maintainer="Kirill Ziuzin"
 ENV container=docker
 

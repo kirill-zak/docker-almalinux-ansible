@@ -72,6 +72,10 @@ Rules that must be respected when editing workflows:
   need registry credentials must pass `secrets: inherit` (see the
   `release-image.yml` callers in `release.yml`). `GITHUB_TOKEN` is always
   available in the callee.
+- GHCR login must use `GHCR_REGISTRY_TOKEN` (a PAT with `write:packages`), **not**
+  `GITHUB_TOKEN`: the existing `kirill-zak/...` packages were created via that PAT,
+  and a repo-scoped `GITHUB_TOKEN` is denied with `permission_denied: write_package`
+  on pre-existing packages even with `permissions: packages: write`.
 - `docker/build-push-action` resolves the `file` input from the **repo root**,
   not from the build context. Use `context: ./` + `file: ./almalinuxN/Dockerfile`;
   a narrowed context (`./almalinuxN`) with `file: Dockerfile` fails with
@@ -119,3 +123,7 @@ python3 -c "import yaml; yaml.safe_load(open('.github/workflows/release.yml'))"
   (`test-image.yml`, `build-image.yml`, `release-image.yml`) over duplicating steps.
 - `matrix` context is **not** available in job-level `if`; filter jobs by
   `inputs`/`github.event_name` only.
+- The runtime stage of every `almalinux*/Dockerfile` must build on the **target**
+  platform (`FROM --platform=$TARGETPLATFORM ...`), never `$BUILDPLATFORM` —
+  otherwise every "multi-arch" variant ends up containing host-arch content
+  while the CI only ever runs the amd64 variant.
