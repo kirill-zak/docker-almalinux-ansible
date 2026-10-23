@@ -80,6 +80,10 @@ Rules that must be respected when editing workflows:
   not from the build context. Use `context: ./` + `file: ./almalinuxN/Dockerfile`;
   a narrowed context (`./almalinuxN`) with `file: Dockerfile` fails with
   "failed to read dockerfile" at build time.
+- Tag/branch triggers use GitHub's **own glob dialect**: `*` = any characters
+  (not `/`), `+` = one or more of the preceding, `?` = zero or one. Do **not**
+  write `[0-9][0-9]*` for "one-or-more digits" — it means "two digits then
+  anything". Use `[0-9]+` instead (this kept `2.0.0` from triggering a release).
 
 ### Adding a new minor release (e.g. 10.2)
 
