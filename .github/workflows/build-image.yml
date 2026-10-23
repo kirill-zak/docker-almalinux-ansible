@@ -56,8 +56,8 @@ jobs:
         uses: docker/build-push-action@v7
         with:
           build-args: VERSION=${{ inputs.version-branch }}.${{ inputs.version-minor }}
-          context: ./almalinux${{ inputs.version-branch }}
-          file: Dockerfile
+          context: ./
+          file: ./almalinux${{ inputs.version-branch }}/Dockerfile
           cache-from: type=gha
           cache-to: type=gha,mode=max
           load: true
