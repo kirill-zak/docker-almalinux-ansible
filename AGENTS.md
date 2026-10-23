@@ -68,6 +68,10 @@ Rules that must be respected when editing workflows:
 - Do **not** build or push Docker images during code changes to workflows —
   validation is done with `actionlint` + a YAML parser (see below). Images are
   only built by the pipelines themselves.
+- Reusable workflows (`workflow_call`) do **not** inherit secrets: callers that
+  need registry credentials must pass `secrets: inherit` (see the
+  `release-image.yml` callers in `release.yml`). `GITHUB_TOKEN` is always
+  available in the callee.
 
 ### Adding a new minor release (e.g. 10.2)
 
