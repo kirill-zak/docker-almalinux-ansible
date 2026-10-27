@@ -20,13 +20,18 @@ almalinux9/
 almalinux10/     One directory per AlmaLinux major version, each with a single
                  Dockerfile (parameterized via ARG VERSION, e.g. 9.7)
 .github/workflows/
-  ci.yml                 CI: smoke tests on PR (latest minors) and master push (full matrix)
-  build.yml              Manual build test (workflow_dispatch, all 4 platforms)
+  config.yml             Reusable workflow: single source of truth for the
+                         versions / platforms / latest_version constants
+  ci.yml                 CI: smoke tests on PR and master push (full matrix)
+  build.yml              Manual build test (workflow_dispatch, all versions x platforms)
   release.yml            Release: tag push (project release marker) or
                          workflow_dispatch rebuilds and republishes everything
   test-image.yml         Reusable workflow: functional smoke test via podman (amd64)
-  build-image.yml        Reusable workflow: multi-arch build test via buildx + QEMU
-  release-image.yml      Reusable workflow: multi-arch build & push to both registries
+  build-image.yml        Reusable workflow: multi-arch build via buildx + QEMU,
+                         optionally pushes to both registries (build test + release)
+.context/
+  optimize-ci.md         CI/CD architecture plan and rationale (read before
+                         changing the workflows)
 ```
 
 ## Supported versions
@@ -70,44 +75,47 @@ Rules that must be respected when editing workflows:
   only built by the pipelines themselves.
 - Reusable workflows (`workflow_call`) do **not** inherit secrets: callers that
   need registry credentials must pass `secrets: inherit` (see the
-  `release-image.yml` callers in `release.yml`). `GITHUB_TOKEN` is always
+  `build-image.yml` caller in `release.yml`). `GITHUB_TOKEN` is always
   available in the callee.
 - GHCR login must use `GHCR_REGISTRY_TOKEN` (a PAT with `write:packages`), **not**
   `GITHUB_TOKEN`: the existing `kirill-zak/...` packages were created via that PAT,
   and a repo-scoped `GITHUB_TOKEN` is denied with `permission_denied: write_package`
   on pre-existing packages even with `permissions: packages: write`.
-- `docker/build-push-action` resolves the `file` input from the **repo root**,
-  not from the build context. Use `context: ./` + `file: ./almalinuxN/Dockerfile`;
-  a narrowed context (`./almalinuxN`) with `file: Dockerfile` fails with
-  "failed to read dockerfile" at build time.
-- Tag/branch triggers use GitHub's **own glob dialect**: `*` = any characters
-  (not `/`), `+` = one or more of the preceding, `?` = zero or one. Do **not**
-  write `[0-9][0-9]*` for "one-or-more digits" — it means "two digits then
-  anything". Use `[0-9]+` instead (this kept `2.0.0` from triggering a release).
+- `docker/build-push-action`: use a **narrowed context** (`./almalinuxN/.`)
+  and do **not** set the `file` input — buildx then defaults to
+  `<context>/Dockerfile`. Do **not** set `file: Dockerfile` explicitly: the
+  `file` input resolves from the **repo root**, not the build context, and
+  fails with "failed to read dockerfile" at build time.
+- Tag triggers in `release.yml` use `tags: ['*']` — every tag push runs the
+  workflow and `validate-tag` enforces the format (this avoids GitHub's glob
+  dialect entirely). If ever using tag **patterns** again: `*` = any characters
+  (not `/`), `+` = one or more of the preceding, `?` = zero or one; do **not**
+  write `[0-9][0-9]*` for "one-or-more digits" (it means "two digits then
+  anything") — use `[0-9]+`.
 
 ### Adding a new minor release (e.g. 10.2)
 
-1. Add the version to the matrices in `.github/workflows/ci.yml`
-   (the full list lives in the "Generate matrix" step of the `matrix` job;
-   the PR version list is the two newest minors, update it too if needed).
-2. Add it to `test-10` and `tag-release-branch-10` in
-   `.github/workflows/release.yml`.
-3. Add the minor to `test-build-10` matrix in `.github/workflows/build.yml`
-   so the manual build test also covers it.
-4. If it is the newest version, update `LATEST_VERSION` and the README tag list.
+1. Add the version to `versions` in the "values" step of
+   `.github/workflows/config.yml` (the single source of truth; every workflow
+   drives its matrix from it).
+2. If it is the newest version, update `latest_version` in
+   `.github/workflows/config.yml` and the README tag list.
 
-Keep the version lists in `ci.yml`, `build.yml`, and `release.yml` consistent —
-every version in the release matrices is published on each release, so an
-omission only shows up as a missing image tag.
+All matrices (CI, manual build, release) derive from `config.yml` outputs, so
+no other workflow needs editing.
 
 ### Release process
 
 - **Tag push** and **workflow_dispatch** behave identically: a full rebuild and
-  republication of all image versions (12 tests + 12 multi-arch builds + `latest`).
+  republication of all image versions (12 tests + 12 multi-arch builds, with
+  `latest` added as an extra tag for the newest version).
 - Tags are **repository release markers** (e.g. `2.0.0`), **not** image versions.
   They must match `x.x.x` or `x.xx.xx` (each part 1–2 digits, optionally prefixed
   with `v`) — anything else fails loudly in the `validate-tag` job.
-- The `latest` image is always built from `LATEST_VERSION`.
+- The `latest` image is always built from `latest_version` in
+  `.github/workflows/config.yml` (`release.yml` passes it as `additional_tags`).
+- Reusable workflows called with `push: true` need registry credentials; the
+  `release` job passes `secrets: inherit` to `build-image.yml`.
 
 ## Validation commands
 
@@ -124,7 +132,7 @@ python3 -c "import yaml; yaml.safe_load(open('.github/workflows/release.yml'))"
 - Branch names follow the GitHub issue pattern, e.g. `67-depricate-8x`.
 - PR/commit messages describe *why*; the README is the user-facing docs.
 - Keep workflows DRY: prefer extending the reusable workflows
-  (`test-image.yml`, `build-image.yml`, `release-image.yml`) over duplicating steps.
+  (`test-image.yml`, `build-image.yml`, `config.yml`) over duplicating steps.
 - `matrix` context is **not** available in job-level `if`; filter jobs by
   `inputs`/`github.event_name` only.
 - The runtime stage of every `almalinux*/Dockerfile` must build on the **target**

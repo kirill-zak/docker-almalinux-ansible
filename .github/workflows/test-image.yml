@@ -4,40 +4,32 @@ name: Test image
 on:
   workflow_call:
     inputs:
-      version-branch:
-        description: Major AlmaLinux version to test (9 or 10)
+      version_branch:
         required: true
         type: string
-      version-minor:
-        description: AlmaLinux minor release to test (e.g. '7' for 9.7)
-        required: true
-        type: string
-      ref:
-        description: Git ref to check out
-        required: true
-        type: string
+
+permissions:
+  contents: read
 
 jobs:
   test:
-    name: Test ${{ inputs.version-branch }}.${{ inputs.version-minor }}
+    name: Test almalinux${{ inputs.version_branch }}
     runs-on: ubuntu-latest
-
-    timeout-minutes: 30
-
-    permissions:
-      contents: read
-
     steps:
-      - name: Checkout the codebase
+      - name: Checkout out the codebase
         uses: actions/checkout@v7
-        with:
-          ref: ${{ inputs.ref }}
+
+      - name: Compute major version
+        id: major
+        run: echo "major=${version%%.*}" >> "$GITHUB_OUTPUT"
+        env:
+          version: ${{ inputs.version_branch }}
 
       - name: Test building image
-        run: podman build -t docker-almalinux-ansible:${{ inputs.version-branch }}.${{ inputs.version-minor }} ./almalinux${{ inputs.version-branch }}/. --build-arg VERSION=${{ inputs.version-branch }}.${{ inputs.version-minor }}
+        run: podman build -t docker-almalinux-ansible:${{ inputs.version_branch }} ./almalinux${{ steps.major.outputs.major }}/. --build-arg VERSION=${{ inputs.version_branch }}
 
       - name: Run the built image
-        run: podman run --name test-container --detach --privileged --volume /sys/fs/cgroup:/sys/fs/cgroup:ro docker-almalinux-ansible:${{ inputs.version-branch }}.${{ inputs.version-minor }}
+        run: podman run --name test-container --detach --privileged --volume /sys/fs/cgroup:/sys/fs/cgroup:ro docker-almalinux-ansible:${{ inputs.version_branch }}
 
       - name: Verify Ansible is accessible in the built image
         run: podman exec --tty test-container env TERM=xterm ansible --version

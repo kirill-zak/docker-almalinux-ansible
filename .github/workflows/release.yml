@@ -4,237 +4,57 @@ name: Release
 on:
   push:
     tags:
-      # Repository release tags: x.x.x or x.xx.xx (optionally prefixed with 'v'),
-      # e.g. '2.0.0'. Any such tag triggers a full rebuild and republication.
-      # Glob dialect note: GitHub's tag filters use * (any chars), + (one or more
-      # of the preceding), ? (zero or one). Use + so single-digit parts match.
-      - '[0-9]+.[0-9]+.[0-9]+'
-      - 'v[0-9]+.[0-9]+.[0-9]+'
+      - '*'
   workflow_dispatch:
-
-env:
-  REGISTRY_IMAGE: kirillzak/docker-almalinux-ansible
-  # Version that gets the `latest` tag. Update when the newest release changes.
-  LATEST_VERSION: '10.2'
 
 permissions:
   contents: read
 
-concurrency:
-  group: release-${{ github.event_name }}-${{ github.ref }}
-  cancel-in-progress: false
-
 jobs:
-  # Tags are project release markers (e.g. '2.0.0'), not image versions,
-  # so a tag push rebuilds and republishes everything, like workflow_dispatch.
   validate-tag:
     name: Validate release tag
-    if: github.event_name == 'push'
     runs-on: ubuntu-latest
-
-    timeout-minutes: 5
-
-    permissions:
-      contents: read
-
+    if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') }}
     steps:
-      - name: Parse and validate tag
+      - name: Validate tag format (vx.x.x)
         run: |
-          tag="${GITHUB_REF_NAME#v}"
-
-          if [[ ! "$tag" =~ ^[0-9]{1,2}\.[0-9]{1,2}\.[0-9]{1,2}$ ]]; then
-            echo "::error::Unexpected tag '${GITHUB_REF_NAME}'. Expected x.x.x or x.xx.xx (e.g. '2.0.0')."
+          tag="${GITHUB_REF#refs/tags/}"
+          echo "Checking tag: ${tag}"
+          if ! echo "$tag" | grep -Eq '^v?[0-9]{1,2}\.[0-9]{1,2}\.[0-9]{1,2}$'; then
+            echo "::error::Invalid release tag '${tag}'."
+            echo "::error::Expected x.x.x, each part 1-2 digits, optional 'v' prefix (e.g., 2.0.0, 10.1.12, v1.12.1), no pre-release suffixes."
             exit 1
           fi
-          echo "Valid release tag: ${tag}"
 
-  test-9:
-    name: Test branch 9
+  config:
+    uses: ./.github/workflows/config.yml
+
+  test:
+    name: Test
+    needs: config
+    strategy:
+      fail-fast: false
+      matrix:
+        version_branch: ${{ fromJSON(needs.config.outputs.versions) }}
     uses: ./.github/workflows/test-image.yml
-    needs: validate-tag
-    permissions:
-      contents: read
-
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - version_branch: 9
-            version_minor: 0
-          - version_branch: 9
-            version_minor: 1
-          - version_branch: 9
-            version_minor: 2
-          - version_branch: 9
-            version_minor: 3
-          - version_branch: 9
-            version_minor: 4
-          - version_branch: 9
-            version_minor: 5
-          - version_branch: 9
-            version_minor: 6
-          - version_branch: 9
-            version_minor: 7
-          - version_branch: 9
-            version_minor: 8
-
     with:
-      version-branch: ${{ matrix.version_branch }}
-      version-minor: ${{ matrix.version_minor }}
-      ref: ${{ github.sha }}
+      version_branch: ${{ matrix.version_branch }}
 
-  test-10:
-    name: Test branch 10
-    uses: ./.github/workflows/test-image.yml
-    needs: validate-tag
-    permissions:
-      contents: read
-
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - version_branch: 10
-            version_minor: 0
-          - version_branch: 10
-            version_minor: 1
-          - version_branch: 10
-            version_minor: 2
-
-    with:
-      version-branch: ${{ matrix.version_branch }}
-      version-minor: ${{ matrix.version_minor }}
-      ref: ${{ github.sha }}
-
-  tag-release-branch-9:
-    name: Release branch 9
-    uses: ./.github/workflows/release-image.yml
-    needs: test-9
+  release:
+    name: Release ${{ matrix.version_branch }}
+    needs: [config, test, validate-tag]
     permissions:
       contents: read
       packages: write
-
+    if: ${{ needs.test.result == 'success' && (needs.validate-tag.result == 'success' || needs.validate-tag.result == 'skipped') }}
+    strategy:
+      fail-fast: false
+      matrix:
+        version_branch: ${{ fromJSON(needs.config.outputs.versions) }}
+    uses: ./.github/workflows/build-image.yml
+    with:
+      version_branch: ${{ matrix.version_branch }}
+      platforms: ${{ join(fromJSON(needs.config.outputs.platforms), ',') }}
+      additional_tags: ${{ matrix.version_branch == needs.config.outputs.latest_version && 'latest' || '' }}
+      push: true
     secrets: inherit
-
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - version_branch: 9
-            version_minor: 0
-          - version_branch: 9
-            version_minor: 1
-          - version_branch: 9
-            version_minor: 2
-          - version_branch: 9
-            version_minor: 3
-          - version_branch: 9
-            version_minor: 4
-          - version_branch: 9
-            version_minor: 5
-          - version_branch: 9
-            version_minor: 6
-          - version_branch: 9
-            version_minor: 7
-          - version_branch: 9
-            version_minor: 8
-
-    with:
-      version: ${{ matrix.version_branch }}.${{ matrix.version_minor }}
-      version-major: ${{ matrix.version_branch }}
-      image-tag: ${{ matrix.version_branch }}.${{ matrix.version_minor }}
-      platforms: linux/amd64,linux/arm64/v8,linux/ppc64le,linux/s390x
-      ref: ${{ github.sha }}
-
-  tag-release-branch-10:
-    name: Release branch 10
-    uses: ./.github/workflows/release-image.yml
-    needs: test-10
-    permissions:
-      contents: read
-      packages: write
-
-    secrets: inherit
-
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - version_branch: 10
-            version_minor: 0
-          - version_branch: 10
-            version_minor: 1
-          - version_branch: 10
-            version_minor: 2
-
-    with:
-      version: ${{ matrix.version_branch }}.${{ matrix.version_minor }}
-      version-major: ${{ matrix.version_branch }}
-      image-tag: ${{ matrix.version_branch }}.${{ matrix.version_minor }}
-      platforms: linux/amd64,linux/arm64/v8,linux/ppc64le,linux/s390x
-      ref: ${{ github.sha }}
-
-  latest-release:
-    name: Latest release
-    runs-on: ubuntu-latest
-    needs: [validate-tag, test-9, test-10]
-
-    permissions:
-      contents: read
-      packages: write
-
-    timeout-minutes: 60
-
-    steps:
-      - name: Checkout the codebase
-        uses: actions/checkout@v7
-        with:
-          ref: ${{ github.sha }}
-
-      - name: Resolve latest version
-        id: latest
-        run: |
-          version="${LATEST_VERSION}"
-          echo "version=${version}" >> "$GITHUB_OUTPUT"
-          echo "major=${version%%.*}" >> "$GITHUB_OUTPUT"
-
-      - name: Docker meta
-        id: meta
-        uses: docker/metadata-action@v6
-        with:
-          images: ${{ env.REGISTRY_IMAGE }}
-
-      - name: Add Qemu
-        uses: docker/setup-qemu-action@v4
-
-      - name: Add Docker BuildX
-        uses: docker/setup-buildx-action@v4
-
-      - name: Login to DockerHub Registry
-        uses: docker/login-action@v4
-        with:
-          username: ${{ secrets.DOCKER_HUB_USERNAME }}
-          password: ${{ secrets.DOCKER_HUB_TOKEN }}
-
-      - name: Login to GitHub Container Registry
-        uses: docker/login-action@v4
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GHCR_REGISTRY_TOKEN }}
-
-      - name: Build and push image
-        uses: docker/build-push-action@v7
-        with:
-          build-args: VERSION=${{ steps.latest.outputs.version }}
-          context: ./
-          file: ./almalinux${{ steps.latest.outputs.major }}/Dockerfile
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-          platforms: linux/amd64,linux/arm64/v8,linux/ppc64le,linux/s390x
-          labels: ${{ steps.meta.outputs.labels }}
-          outputs: type=image,name=${{ env.REGISTRY_IMAGE }},name-canonical=true
-          push: true
-          tags: |
-            ${{ env.REGISTRY_IMAGE }}:latest
-            ghcr.io/${{ github.repository }}:latest

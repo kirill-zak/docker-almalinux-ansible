@@ -1,0 +1,13 @@
+# VCS
+.git/
+.gitignore
+
+# CI/CD и агентная документация
+.github/
+.context/
+AGENTS.md
+*.md
+
+# OS junk
+.DS_Store
+Thumbs.db
