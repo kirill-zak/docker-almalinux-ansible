@@ -138,7 +138,8 @@ python3 -c "import yaml; yaml.safe_load(open('.github/workflows/release.yml'))"
 ## Conventions
 
 - Branch names follow the GitHub issue pattern, e.g. `67-depricate-8x`.
-- PR/commit messages describe *why*; the README is the user-facing docs.
+- PR and commit messages are written in **English** and describe *why*; the
+  README is the user-facing docs.
 - Version lists in `README.md` (`Tags` and `Archive tags`) are arranged in
   descending order (newest first).
 - Keep workflows DRY: prefer extending the reusable workflows
