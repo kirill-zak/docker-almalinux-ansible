@@ -1,44 +1,54 @@
 ---
-name: Build image
+name: Build and push Docker image
 
 on:
   workflow_call:
     inputs:
-      version-branch:
-        description: Major AlmaLinux version to build (9 or 10)
+      version_branch:
         required: true
         type: string
-      version-minor:
-        description: AlmaLinux minor release to build (e.g. '7' for 9.7)
+      platforms:
         required: true
         type: string
-      platform:
-        description: Target platform (e.g. linux/amd64)
-        required: true
+      additional_tags:
+        required: false
         type: string
-      ref:
-        description: Git ref to check out
-        required: true
-        type: string
+        default: ''
+      push:
+        required: false
+        type: boolean
+        default: false
+    secrets:
+      DOCKER_HUB_USERNAME:
+        required: false
+      DOCKER_HUB_TOKEN:
+        required: false
+      GHCR_REGISTRY_TOKEN:
+        required: false
 
 env:
   REGISTRY_IMAGE: kirillzak/docker-almalinux-ansible
 
+permissions:
+  contents: read
+
 jobs:
   build:
-    name: Build ${{ inputs.version-branch }}.${{ inputs.version-minor }} (${{ inputs.platform }})
+    name: almalinux${{ inputs.version_branch }} [${{ inputs.platforms }}]
     runs-on: ubuntu-latest
-
-    timeout-minutes: 30
-
     permissions:
       contents: read
+      packages: write
 
     steps:
-      - name: Checkout the codebase
+      - name: Checkout out the codebase
         uses: actions/checkout@v7
-        with:
-          ref: ${{ inputs.ref }}
+
+      - name: Compute major version
+        id: major
+        run: echo "major=${version%%.*}" >> "$GITHUB_OUTPUT"
+        env:
+          version: ${{ inputs.version_branch }}
 
       - name: Docker meta
         id: meta
@@ -52,27 +62,62 @@ jobs:
       - name: Add Docker BuildX
         uses: docker/setup-buildx-action@v4
 
+      - name: Compute tags
+        id: tags
+        run: |
+          end="EOF_TAGS"
+          {
+            echo "tags<<$end"
+            echo "${{ env.REGISTRY_IMAGE }}:${{ inputs.version_branch }}"
+            echo "ghcr.io/${{ github.repository }}:${{ inputs.version_branch }}"
+            for t in ${{ inputs.additional_tags }}; do
+              echo "${{ env.REGISTRY_IMAGE }}:$t"
+              echo "ghcr.io/${{ github.repository }}:$t"
+            done
+            echo "$end"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Login to DockerHub Registry
+        if: inputs.push
+        uses: docker/login-action@v4
+        with:
+          username: ${{ secrets.DOCKER_HUB_USERNAME }}
+          password: ${{ secrets.DOCKER_HUB_TOKEN }}
+
+      - name: Login to GitHub Container Registry
+        if: inputs.push
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GHCR_REGISTRY_TOKEN }}
+
       - name: Build an image
+        id: build
         uses: docker/build-push-action@v7
         with:
-          build-args: VERSION=${{ inputs.version-branch }}.${{ inputs.version-minor }}
-          context: ./
-          file: ./almalinux${{ inputs.version-branch }}/Dockerfile
+          build-args: VERSION=${{ inputs.version_branch }}
+          context: ./almalinux${{ steps.major.outputs.major }}/.
           cache-from: type=gha
           cache-to: type=gha,mode=max
-          load: true
           labels: ${{ steps.meta.outputs.labels }}
-          platforms: ${{ inputs.platform }}
-          push: false
-          tags: |
-            ${{ env.REGISTRY_IMAGE }}:${{ inputs.version-branch }}.${{ inputs.version-minor }}
-            ghcr.io/${{ github.repository }}:${{ inputs.version-branch }}.${{ inputs.version-minor }}
+          load: ${{ ! inputs.push }}
+          platforms: ${{ inputs.platforms }}
+          push: ${{ inputs.push }}
+          tags: ${{ steps.tags.outputs.tags }}
 
-      # Verification only on the host platform: emulated arches are build-only
-      - name: Run the built image
-        if: inputs.platform == 'linux/amd64'
-        run: docker run --name test-container --detach --privileged --volume /sys/fs/cgroup:/sys/fs/cgroup:ro ${{ env.REGISTRY_IMAGE }}:${{ inputs.version-branch }}.${{ inputs.version-minor }}
+      - name: Export digest
+        if: inputs.push
+        run: |
+          mkdir -p /tmp/digests
+          digest="${{ steps.build.outputs.digest }}"
+          touch "/tmp/digests/${digest#sha256:}"
 
-      - name: Verify Ansible is accessible in the built image
-        if: inputs.platform == 'linux/amd64'
-        run: docker exec --tty test-container env TERM=xterm ansible --version
+      - name: Upload digest
+        if: inputs.push
+        uses: actions/upload-artifact@v7
+        with:
+          name: digests-${{ inputs.version_branch }}
+          path: /tmp/digests/*
+          if-no-files-found: error
+          retention-days: 1

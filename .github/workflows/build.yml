@@ -1,68 +1,27 @@
 ---
 name: Build
-on:
-  workflow_dispatch:
-    inputs:
-      version-branch:
-        description: Major AlmaLinux version to test ('all' by default)
-        required: false
-        default: all
-        type: choice
-        options:
-          - all
-          - '9'
-          - '10'
+on: workflow_dispatch
 
 permissions:
   contents: read
 
-concurrency:
-  group: build-${{ github.ref }}
-  cancel-in-progress: true
-
 jobs:
-  test-build-9:
-    name: Test build of AlmaLinux 9
-    uses: ./.github/workflows/build-image.yml
-    if: inputs.version-branch == 'all' || inputs.version-branch == '9'
+  config:
+    uses: ./.github/workflows/config.yml
+
+  test-build:
+    name: Build ${{ matrix.version_branch }} / ${{ matrix.platform }}
+    needs: config
     permissions:
       contents: read
-
+      packages: write
     strategy:
       fail-fast: false
       matrix:
-        platform:
-          - linux/amd64
-          - linux/arm64/v8
-          - linux/ppc64le
-          - linux/s390x
-        version_minor: [0, 1, 2, 3, 4, 5, 6, 7, 8]
-
-    with:
-      version-branch: '9'
-      version-minor: ${{ matrix.version_minor }}
-      platform: ${{ matrix.platform }}
-      ref: ${{ github.sha }}
-
-  test-build-10:
-    name: Test build of AlmaLinux 10
+        platform: ${{ fromJSON(needs.config.outputs.platforms) }}
+        version_branch: ${{ fromJSON(needs.config.outputs.versions) }}
     uses: ./.github/workflows/build-image.yml
-    if: inputs.version-branch == 'all' || inputs.version-branch == '10'
-    permissions:
-      contents: read
-
-    strategy:
-      fail-fast: false
-      matrix:
-        platform:
-          - linux/amd64
-          - linux/arm64/v8
-          - linux/ppc64le
-          - linux/s390x
-        version_minor: [0, 1, 2]
-
     with:
-      version-branch: '10'
-      version-minor: ${{ matrix.version_minor }}
-      platform: ${{ matrix.platform }}
-      ref: ${{ github.sha }}
+      version_branch: ${{ matrix.version_branch }}
+      platforms: ${{ matrix.platform }}
+      push: false
