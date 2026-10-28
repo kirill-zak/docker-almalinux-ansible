@@ -5,13 +5,13 @@ on:
   workflow_call:
     outputs:
       versions:
-        description: JSON array of supported versions
+        description: JSON-массив поддерживаемых версий
         value: ${{ jobs.config.outputs.versions }}
       platforms:
-        description: JSON array of supported platforms
+        description: JSON-массив поддерживаемых платформ
         value: ${{ jobs.config.outputs.platforms }}
       latest_version:
-        description: Version that carries the latest tag
+        description: Версия, несущая тег latest
         value: ${{ jobs.config.outputs.latest_version }}
 
 permissions:
