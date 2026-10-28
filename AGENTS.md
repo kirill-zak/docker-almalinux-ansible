@@ -29,6 +29,9 @@ almalinux10/     One directory per AlmaLinux major version, each with a single
   test-image.yml         Reusable workflow: functional smoke test via podman (amd64)
   build-image.yml        Reusable workflow: multi-arch build via buildx + QEMU,
                          optionally pushes to both registries (build test + release)
+Makefile + scripts/test.mk
+                         Local smoke test (`make test-build`) mirroring
+                         test-image.yml
 .context/
   optimize-ci.md         CI/CD architecture plan and rationale (read before
                          changing the workflows)
@@ -62,6 +65,9 @@ podman exec --tty test-container env TERM=xterm ansible --version
 
 `ansible-core` is installed in the images; the Ansible binary may be invoked via
 `ansible` or `ansible-playbook`. `sudo` is installed and `requiretty` is disabled.
+
+Or via the Makefile: `make test-build` (override the version with
+`make test-build version_branch=9.8`).
 
 ## GitHub Actions
 
@@ -100,6 +106,8 @@ Rules that must be respected when editing workflows:
    drives its matrix from it).
 2. If it is the newest version, update `latest_version` in
    `.github/workflows/config.yml` and the README tag list.
+3. If it is the newest version, update the `version_branch` default in
+   `scripts/test.mk`.
 
 All matrices (CI, manual build, release) derive from `config.yml` outputs, so
 no other workflow needs editing.
@@ -130,7 +138,10 @@ python3 -c "import yaml; yaml.safe_load(open('.github/workflows/release.yml'))"
 ## Conventions
 
 - Branch names follow the GitHub issue pattern, e.g. `67-depricate-8x`.
-- PR/commit messages describe *why*; the README is the user-facing docs.
+- PR and commit messages are written in **English** and describe *why*; the
+  README is the user-facing docs.
+- Version lists in `README.md` (`Tags` and `Archive tags`) are arranged in
+  descending order (newest first).
 - Keep workflows DRY: prefer extending the reusable workflows
   (`test-image.yml`, `build-image.yml`, `config.yml`) over duplicating steps.
 - `matrix` context is **not** available in job-level `if`; filter jobs by

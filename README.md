@@ -2,8 +2,8 @@
 AlmaLinux docker container with built-in Ansible for playbook and role testing 
 
 ## Tags
-- `9.x`: Based on branch `9.x`. Releases: `9.0`, `9.1`, `9.2`, `9.3`, `9.4`, `9.5`, `9.6`, `9.7`, `9.8`.
-- `10.x`: Based on branch `10.x`. Releases: `10.0`, `10.1`, `10.2`.
+- `10.x`: Based on branch `10.x`. Releases: `10.2`, `10.1`, `10.0`.
+- `9.x`: Based on branch `9.x`. Releases: `9.8`, `9.7`, `9.6`, `9.5`, `9.4`, `9.3`, `9.2`, `9.1`, `9.0`.
 
 ## Platforms
 - `linux/amd64`
@@ -34,4 +34,4 @@ To build the image on your own locally, do the following:
 Not supported and not updated docker images.
 
 List of archive tags:
-- `8.x`: Based on branch `8.x`. Releases: `8.5`, `8.6`, `8.7`, `8.8`, `8.9`, `8.10`.
+- `8.x`: Based on branch `8.x`. Releases: `8.10`, `8.9`, `8.8`, `8.7`, `8.6`, `8.5`.
