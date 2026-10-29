@@ -138,6 +138,9 @@ python3 -c "import yaml; yaml.safe_load(open('.github/workflows/release.yml'))"
 ## Conventions
 
 - Branch names follow the GitHub issue pattern, e.g. `67-depricate-8x`.
+- After the work on a branch is finished, its PR is created and all checks
+  pass, merge the PR **with the branch-deletion option** so the working branch
+  is removed from the GitHub repository.
 - PR and commit messages are written in **English** and describe *why*; the
   README is the user-facing docs.
 - Version lists in `README.md` (`Tags` and `Archive tags`) are arranged in
