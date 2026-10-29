@@ -23,3 +23,20 @@ jobs:
     uses: ./.github/workflows/test-image.yml
     with:
       version_branch: ${{ matrix.version_branch }}
+
+  test-gate:
+    # Stable check name independent of the version matrix, so the master
+    # branch ruleset never needs updating when versions change.
+    name: Test gate
+    needs: [config, test]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fail if a required check did not pass
+        run: |
+          if [ "${{ needs.config.result }}" != success ] || \
+             [ "${{ needs.test.result }}" != success ]; then
+            echo "::error::config or test checks did not pass"
+            exit 1
+          fi
+          echo "All required checks passed"
