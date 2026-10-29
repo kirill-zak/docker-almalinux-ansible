@@ -110,7 +110,9 @@ Rules that must be respected when editing workflows:
    `scripts/test.mk`.
 
 All matrices (CI, manual build, release) derive from `config.yml` outputs, so
-no other workflow needs editing.
+no other workflow needs editing. The master branch ruleset requires a single
+stable check, `Test gate` (it aggregates the whole version matrix in `ci.yml`),
+so the ruleset also needs no editing when versions change.
 
 ### Release process
 
